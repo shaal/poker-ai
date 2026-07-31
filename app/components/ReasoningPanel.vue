@@ -234,7 +234,7 @@ const signedBB = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n)
           />
           <StatReadout
             label="combos left"
-            :value="decision.reading.villainCombos"
+            :value="Math.round(decision.reading.villainCombos)"
             size="sm"
             tone="quiet"
             hint="in their range"
