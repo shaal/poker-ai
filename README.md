@@ -2,10 +2,23 @@
 
 Heads-up No-Limit Texas Hold'em against an opponent that shows its working.
 
-**Status: planning. No code yet.** This repository currently contains the
-research and the decisions taken before writing any, which is deliberate — the
-expensive mistakes in a project like this are architectural, and they are
-cheapest to make on paper.
+**Status: built and playable.** All six roadmap phases are implemented, in the
+dependency order the plan specifies — which meant building the benchmark before
+the strategy it judges, per
+[ADR-009](docs/adrs/009-held-out-benchmark-discipline.md).
+
+```
+npm install
+npm run dev          # play it
+npm test             # 95 tests: rules, equity, solver, strategy, model, bench
+npm run bench        # bb/100 with 95% intervals, FAMILIAR and HELD OUT
+npm run generate     # static export, no server
+```
+
+Measured results are in [docs/results.md](docs/results.md), including the ones
+that came back unresolved. The benchmark reports UNRESOLVED rather than a
+verdict whenever an interval covers zero, which happens more than is comfortable
+and is the honest output at these sample sizes.
 
 ## What this is meant to be
 

@@ -87,6 +87,24 @@ export interface Decision {
   /** The same distribution BEFORE the opponent model touched it. */
   baseline: WeightedAction[]
   /**
+   * What our WHOLE RANGE does at this node, averaged over every holding we
+   * could have here, weighted by how likely each is.
+   *
+   * This exists because `policy` cannot be shown while a hand is live. The
+   * hand-conditional mix is itself a strength label — "bet 52%" against
+   * "bet 6%" tells an attentive opponent what we hold after two or three
+   * observations, without ever naming a card. The range average is a property
+   * of the SPOT rather than of the hand, so it can be shown immediately, and
+   * the hand-conditional one is revealed once the hand is over.
+   *
+   * NULL unless `explain` was requested. Computing it costs an extra policy
+   * evaluation per sampled holding, which is nothing for the one decision an
+   * interface renders and ruinous in a benchmark playing hundreds of thousands
+   * of hands. Null rather than a copy of `policy`, so nobody can mistake the
+   * hand's own mix for the range's.
+   */
+  rangePolicy: WeightedAction[] | null
+  /**
    * Total variation distance between baseline and policy. Zero means the read
    * changed nothing, which is the honest and common case early on.
    */

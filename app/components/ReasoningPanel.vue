@@ -121,7 +121,12 @@ const signedBB = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n)
     <div v-else class="rp__body">
       <!-- Sampled-from line: the action is a draw from a distribution, and
            saying so up front is what stops the panel reading as post-hoc. -->
-      <p class="rp__sampled u-sentence">
+      <p v-if="sealed" class="rp__sampled u-sentence">
+        Played <strong>{{ chosenLabel }}</strong>. Across every hand it could hold here it takes
+        that line <span class="u-num">{{ Math.round(chosenProb * 100) }}%</span> of the time — the
+        frequency for <em>this</em> hand is sealed until the hand ends.
+      </p>
+      <p v-else class="rp__sampled u-sentence">
         Sampled <strong>{{ chosenLabel }}</strong> from a mixed strategy that plays it
         <span class="u-num">{{ Math.round(chosenProb * 100) }}%</span> of the time here.
       </p>
@@ -138,16 +143,28 @@ const signedBB = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n)
       <!-- The comparison the whole product turns on. Side by side, same scale,
            baseline boundaries drawn over the applied bar. -->
       <div class="rp__compare">
-        <PolicyBar label="baseline · no read" :dist="decision.baseline" variant="expected" />
+        <!-- Mid-hand this is the RANGE's strategy at this node, shown once,
+             because the hand-conditional mix is a strength label in disguise.
+             After the hand it becomes the real baseline-versus-applied
+             comparison the product turns on. -->
         <PolicyBar
-          label="applied · with read"
+          v-if="sealed"
+          label="this spot · what our whole range does here"
           :dist="decision.policy"
-          variant="applied"
-          :compare="decision.baseline"
+          variant="expected"
         />
+        <template v-else>
+          <PolicyBar label="baseline · no read" :dist="decision.baseline" variant="expected" />
+          <PolicyBar
+            label="applied · with read"
+            :dist="decision.policy"
+            variant="applied"
+            :compare="decision.baseline"
+          />
+        </template>
       </div>
 
-      <div class="rp__shift">
+      <div v-if="!sealed" class="rp__shift">
         <StatReadout
           label="exploit shift"
           :value="decision.exploitShift.toFixed(3)"
