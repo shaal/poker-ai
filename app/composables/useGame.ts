@@ -47,7 +47,7 @@ const RESULTS_KEY = 'poker-ai:results:v1'
  * is over. Everything else — board texture, price, stack depth, the read — is
  * about the spot and is safe to show live.
  */
-const LEAKY_REASONS = new Set(['hand', 'range', 'chart', 'line'])
+const LEAKY_REASONS = new Set(['hand', 'range', 'chart', 'line', 'note'])
 
 /** The human is always seat 0 on the first hand; seats alternate after that. */
 export interface UseGameOptions {
@@ -107,6 +107,14 @@ export function useGame(opts: UseGameOptions = {}) {
     if (handOver.value) return d
     return {
       ...d,
+      // The hand-conditional mix is itself a strength label: "bet 52%" against
+      // "bet 6%" identifies the holding within two or three observations
+      // without ever naming a card. So mid-hand the panel shows what our whole
+      // RANGE does here, which is a property of the spot, and the
+      // hand-conditional distribution opens when the hand does.
+      policy: d.rangePolicy ?? [],
+      baseline: d.rangePolicy ?? [],
+      exploitShift: 0,
       reading: {
         label: 'sealed until the hand ends',
         equityVsRange: NaN,
@@ -244,6 +252,7 @@ export function useGame(opts: UseGameOptions = {}) {
       const d = decide(s, aiSeat.value, {
         rng,
         runouts: 120,
+        explain: true,
         model: modelFrom(profile.value),
         exploit: exploitEnabled.value,
       })

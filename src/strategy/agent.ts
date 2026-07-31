@@ -8,7 +8,7 @@
  * impressive one.
  */
 
-import { type Card, hand169ToString, Rng } from '../engine/cards'
+import { type Card, combosOf169, hand169ToString, Rng } from '../engine/cards'
 import { legalActions, other, potOdds, spr as sprOf, toCall as toCallOf, totalPot } from '../engine/holdem'
 import { BB, type Action, type HandState, type LegalAction, type Seat } from '../engine/types'
 import {
@@ -26,6 +26,7 @@ import { type Belief, type Decision, formatBB, type HandReading, type Reason, ty
 import { describeHand } from './handclass'
 import { postflopPolicy, type PolicyContext, type PolicyOption } from './policy'
 import { classOf, heroRangeFor, villainRangeFor } from './tracker'
+import { COMBO_A, COMBO_B, N_COMBOS } from './ranges'
 import { sprBucket, SPR_LABELS } from './texture'
 import type { OpponentModel } from '../model/opponent'
 import { applyExploit, beliefsFor, narrowOptionsFor } from '../model/exploit'
@@ -42,6 +43,12 @@ export interface AgentOptions {
   model?: OpponentModel
   /** When false the opponent model is computed and shown but never applied. */
   exploit?: boolean
+  /**
+   * Compute the range-averaged policy for the reasoning panel. Off by default:
+   * it costs an extra policy evaluation per sampled holding, and only an
+   * interface needs it.
+   */
+  explain?: boolean
 }
 
 export function decide(s: HandState, seat: Seat, opts: AgentOptions): Decision {
@@ -88,6 +95,7 @@ export function decide(s: HandState, seat: Seat, opts: AgentOptions): Decision {
     action: chosen,
     policy: shifted.policy,
     baseline: base.policy,
+    rangePolicy: base.rangePolicy,
     exploitShift: shifted.shift,
     reading: base.reading,
     reasons,
@@ -109,6 +117,8 @@ export function makePolicy(opts: AgentOptions): (s: HandState, seat: Seat) => Ac
 
 interface Base {
   policy: WeightedAction[]
+  /** What the whole range does here. See Decision.rangePolicy. */
+  rangePolicy: WeightedAction[] | null
   reading: HandReading
   reasons: Reason[]
   source: Decision['source']
@@ -187,7 +197,58 @@ function preflopDecision(s: HandState, seat: Seat, legal: LegalAction[], opts: A
     villainCombos: 0,
   }
 
-  return { policy, reading, reasons, source: 'preflop-chart' }
+  return {
+    policy,
+    rangePolicy: opts.explain ? preflopRangePolicy(s, seat, legal, node) : null,
+    reading,
+    reasons,
+    source: 'preflop-chart',
+  }
+}
+
+/**
+ * The chart's average action at this node across every hand we could hold,
+ * weighted by combos. Exact and cheap preflop — it is just the chart summed.
+ */
+function preflopRangePolicy(
+  s: HandState,
+  seat: Seat,
+  legal: LegalAction[],
+  node: { aggro: Chart; passive: Chart; raiseTo: number },
+): WeightedAction[] {
+  const canRaise = legal.find((l) => l.type === 'bet' || l.type === 'raise')
+  const canCheck = legal.some((l) => l.type === 'check')
+  const toCall = toCallOf(s, seat)
+
+  let aggro = 0
+  let pass = 0
+  let fold = 0
+  let total = 0
+  for (let i = 0; i < 169; i++) {
+    const w = combosOf169(i)
+    const f = actionFreqs(node.aggro, node.passive, i)
+    aggro += f.aggro * w
+    pass += f.passive * w
+    fold += f.fold * w
+    total += w
+  }
+  aggro /= total
+  pass /= total
+  fold /= total
+
+  const out: WeightedAction[] = []
+  if (canRaise && aggro > 0) {
+    const to = clampTo(node.raiseTo, canRaise)
+    out.push({ action: { type: canRaise.type, to }, prob: aggro, label: `${canRaise.type} to ${formatBB(to)}bb` })
+  }
+  if (canCheck) {
+    out.push({ action: { type: 'check' }, prob: 1 - (canRaise ? aggro : 0), label: 'check' })
+  } else {
+    if (pass > 0) out.push({ action: { type: 'call' }, prob: pass, label: `call ${formatBB(toCall)}bb` })
+    if (fold > 0) out.push({ action: { type: 'fold' }, prob: fold, label: 'fold' })
+  }
+  renormalise(out)
+  return out
 }
 
 // --------------------------------------------------------------- postflop
@@ -240,7 +301,11 @@ function postflopDecision(s: HandState, seat: Seat, legal: LegalAction[], opts: 
     percentileInOwnRange: out.percentileInOwnRange,
     aheadOfRange: out.aheadOfRange,
     rangeAdvantage: out.rangeAdvantage,
-    villainCombos: out.villainCombos,
+    // Counted with the BOARD as the only dead cards, deliberately. Counting
+    // our own hole cards as dead makes the number depend on what we hold, and
+    // a combo count that moves with our blockers is a card leak in a figure
+    // that looks like a property of their range.
+    villainCombos: countCombos(villainRange, s.board),
   }
 
   const reasons: Reason[] = []
@@ -260,7 +325,99 @@ function postflopDecision(s: HandState, seat: Seat, legal: LegalAction[], opts: 
   reasons.push({ key: 'texture', text: `board reads ${out.texture.klass.replace(/-/g, ', ')}` })
   reasons.push({ key: 'spr', text: SPR_LABELS[sprBucket(sprOf(s))] })
   for (const n of out.notes) reasons.push({ key: 'note', text: n })
-  return { policy, reading, reasons, source: 'postflop-policy' }
+  return {
+    policy,
+    rangePolicy: opts.explain ? postflopRangePolicy(ctx, legal, s, seat, out.options) : null,
+    reading,
+    reasons,
+    source: 'postflop-policy',
+  }
+}
+
+/**
+ * What our whole range does at this node, averaged over the holdings we could
+ * have, weighted by how likely each is.
+ *
+ * A sample rather than an enumeration: running the full policy for all ~1000
+ * live combos would cost seconds, and the average converges fast because the
+ * quantity is a mean over a bounded [0,1] variable. Sampling is seeded off the
+ * caller's rng so the figure is stable for a given decision rather than
+ * shimmering between renders.
+ */
+function postflopRangePolicy(
+  ctx: PolicyContext,
+  legal: LegalAction[],
+  s: HandState,
+  seat: Seat,
+  fallback: PolicyOption[],
+): WeightedAction[] {
+  const live: number[] = []
+  const weights: number[] = []
+  let total = 0
+  const dead = new Uint8Array(52)
+  for (const c of ctx.board) dead[c] = 1
+  for (let i = 0; i < N_COMBOS; i++) {
+    const w = ctx.heroRange[i]!
+    if (w <= 0) continue
+    if (dead[COMBO_A[i]!] || dead[COMBO_B[i]!]) continue
+    live.push(i)
+    weights.push(w)
+    total += w
+  }
+  if (live.length === 0 || total <= 0) return toWeightedActions(fallback, legal, s, seat)
+
+  const SAMPLES = 28
+  const acc = new Map<string, { action: Action; label: string; prob: number }>()
+  let taken = 0
+
+  for (let k = 0; k < SAMPLES; k++) {
+    // Stratified pick across the cumulative weight, so the sample covers the
+    // whole range rather than clustering wherever the rng happened to land.
+    const target = ((k + 0.5) / SAMPLES) * total
+    let acc2 = 0
+    let pick = live.length - 1
+    for (let j = 0; j < live.length; j++) {
+      acc2 += weights[j]!
+      if (acc2 >= target) {
+        pick = j
+        break
+      }
+    }
+    const combo = live[pick]!
+    const hole: readonly [Card, Card] = [COMBO_A[combo]!, COMBO_B[combo]!]
+    // Cheap equity for the average — it only has to rank actions, and this
+    // runs 28 times per decision.
+    const out = postflopPolicy({ ...ctx, hole, runouts: Math.min(8, ctx.runouts) })
+    const mapped = toWeightedActions(out.options, legal, s, seat)
+    for (const w of mapped) {
+      const key = `${w.action.type}:${w.action.to ?? ''}`
+      const prev = acc.get(key)
+      if (prev) prev.prob += w.prob
+      else acc.set(key, { action: w.action, label: w.label, prob: w.prob })
+    }
+    taken++
+  }
+
+  const outList: WeightedAction[] = [...acc.values()].map((e) => ({
+    action: e.action,
+    prob: e.prob / Math.max(1, taken),
+    label: e.label,
+  }))
+  renormalise(outList)
+  return outList
+}
+
+/** Total weight of a range, ignoring our own blockers. */
+function countCombos(range: Float64Array, board: readonly Card[]): number {
+  const dead = new Uint8Array(52)
+  for (const c of board) dead[c] = 1
+  let t = 0
+  for (let i = 0; i < N_COMBOS; i++) {
+    if (range[i]! <= 0) continue
+    if (dead[COMBO_A[i]!] || dead[COMBO_B[i]!]) continue
+    t += range[i]!
+  }
+  return t
 }
 
 function lastAggressorBefore(s: HandState, seat: Seat): boolean {
