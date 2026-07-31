@@ -1,0 +1,366 @@
+/*
+ * poker-ai design system.
+ *
+ * Direction (docs/plan/03-interface.md): instrumentation, not casino. The one
+ * organising idea is that UNRESOLVED THINGS ARE HATCHED. A face-down card, a
+ * belief built on fourteen observations and a confidence interval are the same
+ * kind of object — something the AI does not know yet — so they share one
+ * visual grammar and resolve to solid as evidence accumulates.
+ *
+ * Colour carries exactly two meanings, everywhere, without exception:
+ *   --ex  (ice)   expected  — the baseline strategy, the population prior, EV
+ *   --ob  (amber) observed  — the applied policy, the posterior, what happened
+ * Every comparison in this product is expectation versus observation, so the
+ * palette says that once instead of inventing a new colour per panel.
+ *
+ * Money is deliberately NOT coloured by sign. Per ADR-010 the outcome is noise
+ * and the expectation is the signal; green-for-profit would editorialise the
+ * wrong number.
+ */
+
+/* ------------------------------------------------------------------ tokens */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #080c0f;
+  --bg-2: #0a1014;
+  --surface: #0e151a;
+  --surface-2: #131c23;
+  --surface-3: #1a242c;
+  --line: #1d2932;
+  --line-2: #2b3b47;
+
+  --fg: #dbe5ec;
+  --fg-2: #93a5b2;
+  --fg-3: #5f707c;
+
+  --ex: #6ba8d0;
+  --ex-1: #7fb6db;
+  --ex-2: #4e7e9e;
+  --ex-3: #2f5266;
+  --ex-wash: #14242e;
+
+  --ob: #e2a445;
+  --ob-1: #e9b25f;
+  --ob-2: #a97c2e;
+  --ob-3: #6b4e1e;
+  --ob-wash: #2a2011;
+
+  --alert: #c96e58;
+  --alert-wash: #2c1712;
+
+  --suit-s: #c6d4de;
+  --suit-h: #db8a93;
+  --suit-d: #cfaa68;
+  --suit-c: #85b89c;
+
+  --focus: #8fd0f0;
+  --card-face: #101920;
+}
+
+/* Light stays an instrument in daylight — cool paper and ink, not a white app.
+   Two declarations of the same set: one for "system says light", one for the
+   explicit toggle. Kept adjacent so they cannot drift. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+
+    --bg: #e4e9ec;
+    --bg-2: #dde3e7;
+    --surface: #f2f5f6;
+    --surface-2: #e9eef0;
+    --surface-3: #dde5e9;
+    --line: #c5d0d7;
+    --line-2: #a5b4bd;
+
+    --fg: #14202a;
+    --fg-2: #4c5e6b;
+    --fg-3: #778995;
+
+    --ex: #1f6f9e;
+    --ex-1: #17587e;
+    --ex-2: #4a90b7;
+    --ex-3: #9cc4dc;
+    --ex-wash: #d6e6f0;
+
+    --ob: #8f5c05;
+    --ob-1: #7a4e03;
+    --ob-2: #b6822a;
+    --ob-3: #ddbb7c;
+    --ob-wash: #f3e6ce;
+
+    --alert: #a8452f;
+    --alert-wash: #f4dcd6;
+
+    --suit-s: #35444d;
+    --suit-h: #a63f4c;
+    --suit-d: #855f0c;
+    --suit-c: #2c6a4f;
+
+    --focus: #0d6a99;
+    --card-face: #ffffff;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #e4e9ec;
+  --bg-2: #dde3e7;
+  --surface: #f2f5f6;
+  --surface-2: #e9eef0;
+  --surface-3: #dde5e9;
+  --line: #c5d0d7;
+  --line-2: #a5b4bd;
+
+  --fg: #14202a;
+  --fg-2: #4c5e6b;
+  --fg-3: #778995;
+
+  --ex: #1f6f9e;
+  --ex-1: #17587e;
+  --ex-2: #4a90b7;
+  --ex-3: #9cc4dc;
+  --ex-wash: #d6e6f0;
+
+  --ob: #8f5c05;
+  --ob-1: #7a4e03;
+  --ob-2: #b6822a;
+  --ob-3: #ddbb7c;
+  --ob-wash: #f3e6ce;
+
+  --alert: #a8452f;
+  --alert-wash: #f4dcd6;
+
+  --suit-s: #35444d;
+  --suit-h: #a63f4c;
+  --suit-d: #855f0c;
+  --suit-c: #2c6a4f;
+
+  --focus: #0d6a99;
+  --card-face: #ffffff;
+}
+
+:root {
+  /* The machine talks in mono. It switches to a humanist face only where it is
+     speaking English to the player — that switch is the typographic signal
+     that a sentence is addressed to you rather than logged at you. */
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+
+  --fs-micro: 0.6875rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.875rem;
+  --fs-lg: 1rem;
+  --fs-xl: 1.1875rem;
+  --fs-2xl: 1.5rem;
+  --fs-3xl: 2rem;
+
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 7px;
+
+  /* 44px minimum for anything a thumb has to hit. */
+  --touch: 2.75rem;
+
+  --dur: 160ms;
+  --ease: cubic-bezier(0.2, 0.6, 0.3, 1);
+}
+
+/* --------------------------------------------------------------- base */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image: linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 40rem);
+  background-attachment: fixed;
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  /* Horizontal scroll at 320px is a hard failure, not a rendering quirk. */
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--ex);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+
+::selection {
+  background: var(--ex-3);
+  color: var(--fg);
+}
+
+/* ---------------------------------------------------------- primitives */
+
+/* The signature. Density of the hatch encodes how unresolved something is:
+   --hatch-gap is written by the component from a 0..1 settledness value, so a
+   thin sample literally looks less resolved than a thick one. It survives
+   greyscale, colour-blindness and motion being off, which a pulsing glow
+   would not. */
+.u-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--hatch-ink, currentColor) 0 var(--hatch-line, 1px),
+    transparent var(--hatch-line, 1px) var(--hatch-gap, 5px)
+  );
+}
+
+/* Ruler ticks along a scale. Used only where there is genuinely a scale. */
+.u-ticks {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--line-2) 0 1px,
+    transparent 1px var(--tick-gap, 0.5rem)
+  );
+}
+
+.u-mono {
+  font-family: var(--mono);
+}
+
+/* Every number in this interface is tabular. A digit that changes width is a
+   layout shift, and the reasoning panel redraws on every action. */
+.u-num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}
+
+.u-eyebrow {
+  font-family: var(--mono);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  line-height: 1.2;
+}
+
+.u-sentence {
+  font-family: var(--sans);
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.u-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  /* min-width:0 so a long mono readout cannot push a grid track wider than the
+     viewport at 320px. */
+  min-width: 0;
+}
+
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  min-height: 2.5rem;
+}
+
+.panel__body {
+  padding: var(--sp-3);
+}
+
+.rule {
+  height: 1px;
+  background: var(--line);
+  border: 0;
+  margin: var(--sp-3) 0;
+}
+
+/* Bare bar track shared by every gauge so they read as one instrument. */
+.track {
+  position: relative;
+  height: var(--track-h, 0.5rem);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------- motion */
+
+@media (prefers-reduced-motion: no-preference) {
+  .anim-fill {
+    transition: width var(--dur) var(--ease), background-color var(--dur) var(--ease);
+  }
+  .anim-move {
+    transition: left var(--dur) var(--ease);
+  }
+}
