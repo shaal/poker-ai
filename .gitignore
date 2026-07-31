@@ -1,0 +1,9 @@
+node_modules/
+.nuxt/
+.output/
+dist/
+scratch/
+*.log
+.DS_Store
+.claude-flow/
+dist
