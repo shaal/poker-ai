@@ -20,6 +20,14 @@ that came back unresolved. The benchmark reports UNRESOLVED rather than a
 verdict whenever an interval covers zero, which happens more than is comfortable
 and is the honest output at these sample sizes.
 
+**Two results worth knowing before you read anything else.** The baseline beats
+seven of eight familiar opponents and four of five held out — and *loses* to the
+fifth at −15.61 ± 9.61 bb/100, so by the rule in
+[ADR-009](docs/adrs/009-held-out-benchmark-discipline.md) it does not ship as
+finished. And opponent modelling is **off by default**, because it could not be
+shown to beat its own non-adaptive baseline. Both are written up rather than
+worked around. Deployment notes: [docs/deploying.md](docs/deploying.md).
+
 ## What this is meant to be
 
 A browser-based poker opponent that plays a strong baseline strategy, measurably

@@ -61,7 +61,21 @@ export function useGame(opts: UseGameOptions = {}) {
   const rng = new Rng((Date.now() ^ 0x5f3759df) >>> 0)
 
   const profile = ref<OpponentProfile>(loadProfile())
-  const exploitEnabled = ref(opts.exploit ?? true)
+  /**
+   * OFF by default, and that is ADR-005's own rule rather than caution: "if the
+   * bench says it does not [beat its own non-adaptive baseline], opponent
+   * modelling ships off by default and stays an honest, visible experiment."
+   *
+   * As measured, it does not. On the held-out suite the adaptive configuration
+   * and its own baseline are indistinguishable — every interval covers zero.
+   * The research predicts exactly that at these sample sizes: fold-to-c-bet
+   * alone needs ~3,840 hands to stabilise to +/-5%, and a session is a hundred.
+   *
+   * The reads are still computed, still shown, and still accumulate across
+   * visits. What is off is letting them move the strategy. Flip the switch and
+   * they do — see docs/results.md before believing it helps.
+   */
+  const exploitEnabled = ref(opts.exploit ?? false)
 
   const state = shallowRef<HandState>(deal(rng))
   const version = ref(0) // bumped to force recompute after in-place mutation

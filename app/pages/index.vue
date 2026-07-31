@@ -99,8 +99,13 @@ function onAction(a: Action) {
       <div class="area-model model">
         <label class="model__row">
           <input v-model="exploitEnabled" type="checkbox" />
-          <span>Adapt to how I play</span>
+          <span>Let the reads change how it plays</span>
         </label>
+        <p class="model__note">
+          Off by default. It reads you either way and shows you what it thinks —
+          but on the benchmark, letting those reads move the strategy could not
+          be shown to help, so it stays an experiment rather than a claim.
+        </p>
         <p class="model__note">
           {{ handsObserved }} hands observed. Reads persist between visits;
           nothing leaves this browser.
