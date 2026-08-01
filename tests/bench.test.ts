@@ -16,15 +16,20 @@ import {
   alwaysMinRaise,
   callingStation,
   FAMILIAR,
+  flatValue,
   loosePassiveMixer,
   maniac,
   nit,
+  sizedValue,
   tightAggressive,
 } from '~core/bench/opponents/familiar'
 import { HELD_OUT, tiltAfterLoss, type TiltMemory } from '~core/bench/opponents/heldout'
 import { formatTable, runMatch, runSuite } from '~core/bench/run'
 import { bb100, significant } from '~core/bench/stats'
 import { freshDeck, shuffle } from '~core/engine/cards'
+import { BB } from '~core/engine/types'
+import { madeHand } from '~core/bench/opponents/helpers'
+import { playHand, type Policy } from '~core/engine/holdem'
 
 const HANDS = 6_000
 const SEED = 7
@@ -232,5 +237,74 @@ describe('held-out suite', () => {
     const s = runMatch(tightAggressive, loosePassiveMixer, { hands: 40_000, seed: 31 })
     expect(s.hands).toBe(40_000)
     expect(Date.now() - t0).toBeLessThan(20_000)
+  })
+})
+
+/**
+ * `sizedValue` and `flatValue` are a matched pair, and the ONLY difference
+ * between them is whether bet size carries information about hand strength.
+ * Every conclusion drawn from comparing their two rows depends on that, and
+ * nothing else in the repository would notice if it stopped being true — a
+ * later edit that gave `flatValue` a second size, or that flattened
+ * `sizedValue`'s ladder, would quietly turn the experiment into a comparison of
+ * two arbitrary opponents while still producing a confident-looking table.
+ */
+describe('the sizing-as-information pair stays a controlled comparison', () => {
+  const CARDS_BY: Record<string, number> = { flop: 3, turn: 4, river: 5 }
+
+  /**
+   * Median postflop bet size as a fraction of the pot, per strength tier.
+   *
+   * Only unopposed bets count. On a raise, `paid` includes the call, so the
+   * ratio is not the intended pot fraction; and `aggro` clamps into the legal
+   * band, so a short stack produces sizes that belong to no rung of the ladder.
+   * The median absorbs those without needing to special-case them.
+   */
+  function medianSizeByTier(make: (rng: Rng) => Policy): Map<string, number> {
+    const seen = new Map<string, number[]>()
+    const rng = new Rng(4242)
+    const villain = make(rng)
+    const deck = freshDeck()
+    for (let i = 0; i < 600; i++) {
+      shuffle(deck, rng)
+      const s = playHand(rng, [tightAggressive(rng), villain], { deck })
+      for (const a of s.history) {
+        if (a.seat !== 1 || a.street === 'preflop') continue
+        // Below a built pot the engine's 1 BB minimum bet flattens the low
+        // rungs into each other, so the ladder is only observable above it.
+        if (a.type !== 'bet' || a.potBefore < 4 * BB) continue
+        const visible = s.board.slice(0, CARDS_BY[a.street]!)
+        if (visible.length < 3) continue
+        const m = madeHand(s.players[1].hole, visible)
+        const tier = m.cat <= 4 ? 'nuts' : m.cat <= 6 ? 'strong'
+          : m.cat === 7 && (m.hitsTop || m.overpair) ? 'thin' : 'air'
+        if (!seen.has(tier)) seen.set(tier, [])
+        seen.get(tier)!.push(a.paid / a.potBefore)
+      }
+    }
+    const out = new Map<string, number>()
+    for (const [tier, xs] of seen) {
+      xs.sort((x, y) => x - y)
+      out.set(tier, xs[Math.floor(xs.length / 2)]!)
+    }
+    return out
+  }
+
+  it('sizedValue climbs: the nuts bet strictly bigger than air', () => {
+    const byTier = medianSizeByTier(sizedValue)
+    for (const tier of ['nuts', 'strong', 'thin', 'air']) {
+      expect(byTier.get(tier), `tier ${tier} never bet — sample too small to test`).toBeDefined()
+    }
+    expect(byTier.get('nuts')!).toBeGreaterThan(byTier.get('strong')!)
+    expect(byTier.get('strong')!).toBeGreaterThan(byTier.get('thin')!)
+    expect(byTier.get('thin')!).toBeGreaterThan(byTier.get('air')!)
+  })
+
+  it('flatValue does not climb: every tier bets the same size', () => {
+    const byTier = medianSizeByTier(flatValue)
+    expect(byTier.size).toBeGreaterThan(1)
+    for (const [tier, size] of byTier) {
+      expect(size, `tier ${tier} deviates from the flat size`).toBeCloseTo(0.7, 1)
+    }
   })
 })
