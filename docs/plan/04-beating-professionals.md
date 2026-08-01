@@ -50,6 +50,76 @@ Worth keeping in proportion: **Pluribus cost about 12,400 core-hours, roughly
 $144 of compute.** The barrier has never been money. It is knowing what to
 compute.
 
+## The honest ceiling, in numbers
+
+Assume all of the below is built competently: server-side subgame re-solving,
+a reasonable blueprint feeding it ranges, the sizing bug fixed, LBR in the ship
+gate, exploitation off. Solo, months not years, low hundreds of dollars of
+compute. **Not** a research effort.
+
+Against a **strong professional heads-up specialist** over 10,000–20,000 hands:
+
+| | |
+|---|---|
+| Probability the point estimate is positive | **10–25%** |
+| Probability a 95% interval excludes zero in our favour | **under 5%** |
+| Expected win rate, planning number | **−15 bb/100, ± 10** |
+| Pessimistic (shallow search, range bugs) | −25 to −50 bb/100 |
+| Research-tier (not this budget) | −2 to +5 bb/100 |
+
+For scale, σ in heads-up is around 80–100 bb/100, so over 20,000 hands the
+standard error of the mean is only about 6–7 bb/100. A 10–25% chance of a
+positive point estimate is mostly noise and a cold deck, not skill.
+
+Where the line actually falls:
+
+| Opponent | Expected | Verdict |
+|---|---|---|
+| Recreational, stations, maniacs | +10 to +40 bb/100 | comfortable |
+| Weak regular, one-dimensional | +3 to +15 | usually ahead |
+| Decent online regular | −5 to +5 | unresolved without a huge sample |
+| Strong regular / small-stakes grinder | −5 to −20 | we are the underdog |
+| Strong professional | −10 to −30 | **loses** |
+
+**So: after everything, it should comfortably beat recreational players, usually
+beat weak regulars, be indistinguishable from a decent regular without an
+enormous sample, and still lose to professionals.** Treat a winning session
+against a pro as lottery noise, not as a milestone.
+
+The current +1.24 ± 9.03 against a 30-line script is not yet at the *floor* of
+that table. The gap to "crushes recreational players" is real work.
+
+## The thing this plan kept getting wrong
+
+Every version of this roadmap described architecture **to implement**. Adoption
+was never treated as a first-class option, and that is the single highest-cost
+mistake in it.
+
+CFR+ is not the bottleneck — this repository already has a correct one. The
+bottleneck is getting a correct, fast enough heads-up subgame solver into
+production part-time without re-deriving 2017–2019 from scratch. Standing on an
+existing engine is the highest return per hour available, and it never appeared
+as a requirement.
+
+Concretely, and already identified in [ADR-004](../adrs/004-no-in-browser-cfr.md)
+before any code existed:
+
+- **[b-inary/poker-cfr](https://github.com/b-inary/poker-cfr)** — BSD-2, ships a
+  heads-up preflop Nash dataset at ~12.6 MB. That replaces the hand-authored
+  charts in `src/strategy/charts.ts` with solved ones, immediately, for the cost
+  of a download and a parser.
+- **[pokers](https://crates.io/crates/pokers)** — wasm-clean, verified: no
+  `build.rs`, no filesystem access in `src/`, tables checked in.
+- **[rs-poker](https://crates.io/crates/rs-poker)** — Apache-2.0, actively
+  maintained.
+- **wasm-postflop** is AGPL, so it cannot be adopted into a permissively-licensed
+  product — but it remains the best available reference for how a browser-scale
+  postflop solver is structured.
+
+Commercial solvers are also usable as an **offline oracle for tests** — checking
+our output against theirs on fixed spots — which is a different thing from
+shipping their strategy or claiming GTO.
+
 ## Ordered by return per unit of effort
 
 **1. Kill the `s/(1+s)` bluff-composition model in the villain's range.**
@@ -62,13 +132,24 @@ forbids developing this against the held-out opponent that exposed it. It needs
 a separately-authored familiar opponent that exercises sizing-as-information,
 the fix built against that, constants frozen, and *then* one look at held-out.
 
-**2. A server-side subgame re-solver.** The real work. On each decision, solve
-the current subgame with real cards against the tracked ranges, and act from the
-result. This is what Libratus does and it is where the strength is.
+**2. A river-only subgame re-solver, wired to the real table.** Start here, not
+with the full tree. The river is a one-street game with no future streets to
+model, so it is small enough to solve exactly and it proves the entire
+architecture — range plumbing, server round trip, latency budget — against the
+part of the game where mistakes cost the most.
 
-**3. A thin trunk / blueprint.** Not to play from — to supply the ranges and
-continuation values the re-solver needs. It can be much coarser than instinct
-suggests, because it is scaffolding rather than the strategy.
+This doubles as a diagnostic with a sharp reading. **If a working river
+re-solver still cannot beat `tightAggressive` with a tight interval, the problem
+is the ranges being fed into it, not a lack of search.** That is a far more
+useful failure than a vague sense that more solving is needed.
+
+Then turn, then flop, each with depth limits. Do not begin with a four-street
+offline blueprint.
+
+**3. A thin trunk / blueprint — only when leaf and range quality is the
+bottleneck.** Not to play from; to supply the ranges and continuation values the
+re-solver needs. It can be much coarser than instinct suggests, because it is
+scaffolding rather than the strategy. Adopt rather than derive it (see above).
 
 **4. Add a best-response probe to the ship gate.** Right now the gate is scripted
 archetypes, and those are structurally blind to the failure that matters: an
@@ -140,6 +221,58 @@ player rather than a Bayesian update on 200 hands; deviation only on
 catastrophic leaks with thousands of observations behind them; and always with
 the hard KL/total-variation cap already implemented. Keep the modelling for the
 interface and for weak-opponent modes. It is not the road to pro level.
+
+## The strategic answer: a floor, not a ceiling
+
+Chasing professional-level strength is the wrong primary investment for this
+project, and the reason is not modesty about the budget.
+
+This project's differentiator was written down before any code existed and it is
+not strength — it is that the opponent explains itself: what it believes about
+you, how sure it is, and how much that changed the decision. Nothing else in the
+category does that. Meanwhile "beats professionals" means competing with
+research labs on their own metric, and the table above says the honest outcome
+is −15 bb/100 anyway.
+
+But there is a trap on the other side, and it is the sharpest point in this
+document:
+
+> **Explaining a weak policy is negative pedagogy.** A reasoning panel attached
+> to a bot that cannot beat a 30-line script is the best possible interface for
+> teaching bad lines. Checkability of a fish is a novelty, not a product.
+
+So the strength work is not optional and it is not vanity. It exists to earn the
+right to the teaching claim. The correct target is a **floor, not a ceiling**:
+
+1. Strong enough to beat recreational players convincingly and hold its own
+   against weak regulars — the top two rows of the table above.
+2. **LBR-gated**, so that claim is falsifiable rather than asserted.
+3. Every remaining hour spent on explanation and teaching.
+4. No claim of pro-competitive, GTO, or solved. Not now, not after.
+
+That is focus, not retreat — but only if the strength floor is actually reached.
+Before it is, the same plan *is* a retreat.
+
+## What to build for the product, once the floor is met
+
+The explanation layer is where this project can be genuinely first, and it is
+barely started. What exists is the panel. What it could be:
+
+- **Counterfactuals.** "What would change this line?" — the hand, board card or
+  bet size that flips the decision. This is the single most instructive thing a
+  poker interface can show and essentially nobody does it.
+- **The post-hand range story.** Replay the hand showing the opponent's range
+  narrowing action by action, so the player *sees* what their own line
+  advertised.
+- **A leak report about the player, not the AI.** The model already counts
+  everything needed, with sample sizes. Inverting it — "here is what you do too
+  often, and here is how sure I am" — turns the opponent model from a mildly
+  negative-EV strategy component into the most valuable feature in the product.
+  It is also the honest use of a statistic too thin to bet on but plenty good
+  enough to *mention*.
+- **Sealed predictions, extended.** The seal/reveal mechanic already exists.
+  Committing a read before the river and opening it afterwards is what makes the
+  explanation credible rather than post-hoc.
 
 ## What this means for the project as it stands
 
