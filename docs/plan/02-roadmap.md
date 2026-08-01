@@ -3,6 +3,18 @@
 Phases, in dependency order from [`00-goal.md`](00-goal.md). Each phase has an
 exit criterion that is a measurement, not a feeling.
 
+> **Status: phases 0-5 are built.** What they actually measured is in
+> [`../results.md`](../results.md), including the parts that failed — Phase 2's
+> exit criterion is **not** met (a significant loss to a held-out opponent) and
+> Phase 4's claim came back **negative**, so opponent modelling ships off.
+>
+> Everything past this point is superseded by
+> [`04-beating-professionals.md`](04-beating-professionals.md) and
+> [`05-stack-and-data.md`](05-stack-and-data.md), which were written after
+> measuring rather than before building. The short version: the heuristic
+> postflop is frozen, strength now comes from a Rust solver service, and the
+> target is a floor rather than a ceiling.
+
 ## Phase 0 — Foundations
 
 **Actions A1, A2.** Format is fixed by [ADR-001](../adrs/001-scope-heads-up-nlhe.md).

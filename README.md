@@ -32,7 +32,12 @@ worked around. Deployment notes: [docs/deploying.md](docs/deploying.md).
 
 A browser-based poker opponent that plays a strong baseline strategy, measurably
 improves against a specific player as it gathers evidence about them, and makes
-both of those things visible on screen. Static site, no server.
+both of those things visible on screen.
+
+It is a static site with no server today, and
+[ADR-012](docs/adrs/012-rust-solver-service.md) proposes changing that — because
+search at play time is the only thing that buys real strength, and it cannot run
+in a browser. The interface stays where it is; the solver moves to Rust.
 
 The interesting screen is not the table. It is the one where the AI says what it
 thinks it knows about you, how confident it is, and how much that changed the
@@ -73,7 +78,14 @@ benchmark. Full reasoning in
 - [Interface direction](docs/plan/03-interface.md) — why this should not look
   like a casino
 
-**[Decisions](docs/adrs/)** — ten ADRs. The three that carry the project:
+**[Decisions](docs/adrs/)** — sixteen ADRs. 001-010 were written before any code
+existed; 011-016 came out of building it and measuring it, and several amend an
+earlier one rather than standing alone.
+
+Working on this? Start with [CLAUDE.md](CLAUDE.md) — it carries the disciplines
+that are not negotiable and the traps that have already cost time.
+
+The three that carry the project:
 
 - [003 — postflop strategy representation](docs/adrs/003-postflop-strategy-representation.md).
   The highest-risk decision here. Monte Carlo equity compared against pot odds is
@@ -87,25 +99,48 @@ benchmark. Full reasoning in
   measured +0.7pp against a benchmark it had co-designed and −0.5pp against one
   it had not.
 
+**Where it goes next** — [beating professionals](docs/plan/04-beating-professionals.md)
+and [stack and data](docs/plan/05-stack-and-data.md). Short version: search at
+play time is the only thing that buys real strength, it needs a Rust service,
+and even fully built it measures around −8 bb/100 against a strong professional.
+So the target is a *floor* — beat recreational players convincingly, prove it
+with a best-response probe — and everything else goes into the explanation
+layer. One decision, [ADR-014](docs/adrs/014-solver-licence.md), is blocked
+pending a human: there is no permissively-licensed heads-up postflop solver to
+adopt.
+
 ## Questions already settled
 
-**Will it use a vector database?** No — see
-[ADR-006](docs/adrs/006-no-vector-database.md). The binding constraint on
-opponent modelling is sample size, not retrieval speed, and the features
-involved are counters rather than embeddings. A faster way to query a sample too
-small to act on is not progress.
+**Will it use a vector database?** Not for opponent modelling, and only offline
+elsewhere — see [ADR-006](docs/adrs/006-no-vector-database.md) and its amendment
+[ADR-011](docs/adrs/011-ruvector-for-offline-clustering.md). The binding
+constraint on opponent modelling is sample size, not retrieval speed, and the
+features involved are counters rather than embeddings; a faster way to query a
+sample too small to act on is not progress. ruvector is used at build time for
+board clustering, is never in the browser bundle, and ADR-011 states plainly
+that its leverage is small. Its documented failure mode — a stub that reports
+success while returning nothing — was reproduced live, which is why
+`npm run probe:vector` proves the engine by using it rather than by reading its
+backend label.
 
 **Will it use [poker-darwin](https://github.com/ruvnet/metaharness/tree/main/crates/poker-darwin)?**
-Not in the critical path — see [ADR-007](docs/adrs/007-poker-darwin.md). Its
-NLHE abstraction is 1,116 infosets across two streets, it contains no opponent
-modelling, and its README states no licence. It remains useful as a correctness
-reference, since Kuhn poker has a known closed-form value.
+Not in the critical path — see [ADR-007](docs/adrs/007-poker-darwin.md), which
+was re-checked against primary sources during implementation. Its NLHE
+abstraction is 1,116 infosets across two streets at **20bb**, where this project
+is fixed at 100bb, and it contains no opponent modelling. The "no licence"
+objection recorded originally has been **withdrawn** — `metaharness` ships an
+MIT LICENSE file. The correctness use it was kept for was implemented directly
+instead: our own CFR+ reaches Kuhn's closed-form −1/18 to 6e−9, and independently
+reproduces poker-darwin's Leduc infoset count of 288.
 
 **Will it solve in the browser?** No — see
 [ADR-004](docs/adrs/004-no-in-browser-cfr.md). It is genuinely possible
 ([wasm-postflop](https://github.com/b-inary/wasm-postflop) proves it) at a cost
 of 660 MB–1.25 GB of memory and 33–72 seconds per solve, under AGPL, from a
-project suspended since 2023.
+project suspended since 2023. ADR-004 named its own revisit condition — "the
+project acquires a server" — and that condition is now met, which is what
+[ADR-012](docs/adrs/012-rust-solver-service.md) acts on. Solving still does not
+happen in the browser; it happens in a service.
 
 ## Sibling project
 
