@@ -3,6 +3,10 @@
 Heads-up No-Limit Hold'em against an opponent that shows its working. Nuxt 4 +
 Vue 3 static export, with a pure TypeScript core behind the `~core` alias.
 
+**Start with [`STATUS.md`](STATUS.md)** — current state, what is blocked, and
+the next action. This file is standing guidance and changes rarely; that one is
+volatile and is updated at the end of every session.
+
 **Read [`docs/adrs/README.md`](docs/adrs/README.md) before changing anything
 architectural, and [`docs/results.md`](docs/results.md) before believing
 anything about how strong it is.** The ADRs are not background reading; several
@@ -181,29 +185,11 @@ grok -c -p "follow-up in the same session, from the same cwd"
 
 ## What to build next
 
-Read [`docs/plan/04-beating-professionals.md`](docs/plan/04-beating-professionals.md)
-and [`docs/plan/05-stack-and-data.md`](docs/plan/05-stack-and-data.md) in full
-before starting. Ordered:
+See [`STATUS.md`](STATUS.md). It is kept current; a duplicate list here would go
+stale and then mislead.
 
-1. **[ADR-014](docs/adrs/014-solver-licence.md) needs a human decision first.**
-   There is no permissively-licensed HUNL postflop solver; the licence chosen
-   decides whether the solver is adopted or written, which is the difference
-   between weeks and months. Do not start ADR-012 work before this is settled.
-2. **Adopt [b-inary/poker-cfr](https://github.com/b-inary/poker-cfr)** (BSD-2)
-   for the preflop layer, replacing the hand-authored charts in
-   `src/strategy/charts.ts`. Clean win, unaffected by the licence decision.
-3. **Kill the `s/(1+s)` villain bluff-composition model** — via a new familiar
-   opponent, per the discipline above.
-4. **A river-only re-solver in Rust**, wired to the real table. Not the full
-   tree. It proves the architecture and doubles as a diagnostic: if it still
-   cannot beat the script with a tight interval, the problem is the ranges being
-   fed in, not the search.
-5. **The LBR probe** in the ship gate ([ADR-015](docs/adrs/015-best-response-probe-in-the-ship-gate.md)).
-6. Then turn, then flop, then the value network for leaves
-   ([ADR-013](docs/adrs/013-training-data-is-generated-not-collected.md)).
-
-**And keep [ADR-016](docs/adrs/016-strength-floor-not-ceiling.md) in view.** The
-target is a floor — beat recreational players convincingly, prove it with LBR —
-and then everything else goes into the explanation layer. Fully built, this
-still measures around −8 bb/100 against a strong professional. The project does
-not claim otherwise and neither should you.
+One thing worth repeating because it is easy to walk past:
+**[ADR-014](docs/adrs/014-solver-licence.md) needs a human decision and blocks
+the strength roadmap.** There is no permissively-licensed heads-up postflop
+solver to adopt, and whether to accept AGPL is a product decision with legal
+consequences. Ask; do not decide it.
