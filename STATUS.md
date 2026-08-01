@@ -81,24 +81,57 @@ but small. And the sign cannot be fixed by assuming it in either direction —
 inverting it scored worse than deleting it, so getting it right means estimating
 it per opponent, which is opponent modelling, which ships off.
 
-**The lead this leaves** is sharper than the one it closed. `tightAggressive`,
-a thirty-line script with no opponent model at all, **beats this strategy by
-20 bb/100** against `sizedValue` and is level with it elsewhere. That points at
-the tracked range being worse than no range against a sizing opponent, rather
-than at any constant inside `narrowOnAction`.
+**The lead this leaves.** `tightAggressive`, a thirty-line script with no
+opponent model at all, **beats this strategy by 20 bb/100** against `sizedValue`
+and is level with it elsewhere. That is a *system* comparison — it differs in
+charts, policy, sizing and mixing too — so it is a smell, not a verdict on the
+range tracker. Turning it into one without running the ablation would repeat the
+exact error this section records.
 
-## Next actions, in order
+## Next actions
 
-**1. A river-only re-solver in Rust.** Unblocked as of 2026-08-01.
+The ordering below is deliberate and was argued over. The temptation after two
+consecutive findings that a foundation was never measured is to measure every
+remaining foundation before building anything. **That is how a floor-first
+project never reaches its floor.** The cheap measurement runs; it does not gate
+the build.
+
+**0. Ablate the range tracker. Hours, and it does not block anything below.**
+Run the strategy with postflop narrowing disabled and the villain range left at
+its chart prior, over a row list registered before the run. This settles whether
+`narrowOnAction` is worth anything at all, which has never been measured in
+either direction. *Do not wait for it to finish before starting 1.* If it comes
+back saying the tracker is toxic, the consequence is that the solver's first
+consumer takes a chart-only prior — not that the range plumbing is deleted.
+Ranges for a re-solver are not the same object as ranges for a pot-odds policy,
+and killing the second does not condemn the first.
+*Done when:* results.md has the rows, whichever way it went.
+
+**1. The river-only re-solver. The mainline, starting now.**
 One street, no future to model, small enough to solve exactly. Proves the whole
-architecture — range plumbing, round trip, latency budget. It is also a
+architecture — range plumbing, round trip, latency budget. Unblocked by
+[ADR-014](docs/adrs/014-solver-licence.md) as of 2026-08-01. It is also a
 diagnostic with a sharp reading: **if a working river re-solver still cannot
 beat `tightAggressive` with a tight interval, the problem is the ranges being
 fed in, not the search.**
 
-**2. The LBR probe in the ship gate** ([ADR-015](docs/adrs/015-best-response-probe-in-the-ship-gate.md)).
-Calibrate it against a known-bad strategy: `alwaysFold` should lose horribly to
-it. If it does not, the probe is too weak to mean anything.
+This is first among the multi-week efforts and should not queue behind more
+measurement. Nothing else on this list changes the fact that the strategy cannot
+be shown to beat a thirty-line script, and per
+[ADR-016](docs/adrs/016-strength-floor-not-ceiling.md) turning to the explanation
+layer before the floor is met is retreat dressed as product focus. The first
+product-complete moment is *search explaining a river spot*, which needs 1 to
+exist.
+
+**2. A thin LBR probe, in parallel with 1, not before it.**
+([ADR-015](docs/adrs/015-best-response-probe-in-the-ship-gate.md).) Calibrate
+against a known-bad strategy — `alwaysFold` should lose horribly to it, and if
+it does not the probe is too weak to mean anything — then take one baseline
+number on the current strategy. **Wire it into the ship gate when there are two
+candidates to compare**, i.e. once the river re-solver exists. A probe that
+delays the only change capable of moving exploitability is self-sabotage, and a
+large negative number on a frozen fallback is rigorous-feeling despair, not a
+milestone.
 
 Then turn, then flop, then the value network for leaves
 ([ADR-013](docs/adrs/013-training-data-is-generated-not-collected.md)).

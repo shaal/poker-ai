@@ -390,9 +390,21 @@ Not a fix. Three things worth more than the change would have been:
 
 The next lead is that `tightAggressive`, with no opponent model at all, beats
 this strategy by 20 bb/100 against `sizedValue` and is level with it everywhere
-else. Whatever `narrowOnAction` is contributing against a sizing opponent, a
-policy that ignores the tracker entirely does better — and that points at the
-tracked range being worse than no range, not at any single constant inside it.
+else.
+
+**That is a system comparison and it must not be read as a tracker result**,
+which is a mistake this file made in its first draft. `tightAggressive` differs
+from the strategy in its preflop charts, its postflop policy, its sizing and its
+mixing, not only in having no range model. Attributing the 20 bb/100 to
+`narrowOnAction` converts a whole-system loss into a module indictment on no
+evidence — the same move that produced the diagnosis this section just spent a
+day rejecting.
+
+What it licenses is a *test*, not a conclusion: run the strategy with postflop
+narrowing disabled and the villain range left at its chart prior, across a fixed
+row list registered in advance. That is hours of work and it settles whether the
+tracked range is worth anything. Until it is run, "the tracker is a liability"
+is a hypothesis with exactly the pedigree of the last one.
 
 ## Interface
 
