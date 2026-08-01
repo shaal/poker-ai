@@ -118,6 +118,20 @@ returning nothing. That is tolerable offline, where a human reads the output and
 the probe gates it, and it would not be tolerable at runtime. The distinction is
 the reason for the split, not a rationalisation of it.
 
+**Leverage, stated honestly.** This decision is correct but small. The
+clustering it enables runs over a few thousand flops against a few dozen
+centroids, where a brute-force scan is already fast enough — the code says so
+in `src/cluster/engine.ts` rather than implying the index is load-bearing. An
+external review of the pro-level roadmap put it more bluntly: building a
+card abstraction is *offline batch clustering*, a job for GPU k-means, and a
+vector database is built for online approximate retrieval, persistence and
+concurrent queries, none of which that job needs. Scaling the abstraction up
+does not change that; it makes it more true.
+
+So this ADR should not be read as "the project uses a vector database". It
+uses one in the one place it fits, and that place is not on the critical path
+to strength. See [the professional-level plan](../plan/04-beating-professionals.md).
+
 **Revisit if:** the browser genuinely needs similarity search at play time — for
 instance "show me past hands where I faced a spot like this against you", which
 is a feature the reasoning panel could plausibly want. That would mean either
