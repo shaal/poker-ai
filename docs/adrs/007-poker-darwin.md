@@ -1,6 +1,53 @@
 # ADR-007: poker-darwin is not in the critical path
 
-**Status:** Accepted
+**Status:** Accepted — re-checked during implementation, decision unchanged, one
+of its three objections withdrawn
+
+## Re-check (implementation)
+
+The decision below rests on three facts. They were verified again before writing
+the solver, because inheriting a stale fact from an accepted ADR is exactly how
+a decision stops being a decision. One of the three has changed.
+
+**The licence objection is withdrawn.** `metaharness` carries an MIT LICENSE
+file and states "MIT — see LICENSE" in its README. The claim below that "no
+licence is stated" was true of the crate's own README and is misleading about
+the repository that contains it. Unlicensed code is not shippable; MIT code is.
+That objection should not be repeated.
+
+**The abstraction objection stands, and is worse than recorded.** It is still
+1,116 infosets, still preflop and flop only, still 6 strength buckets per
+street, still `{fold, check/call, pot-bet, all-in}`. The detail the original ADR
+did not have: it is solved at **20bb stacks with SB 1 / BB 2 and at most three
+raises per round**. [ADR-001](001-scope-heads-up-nlhe.md) fixes this project at
+**100bb**, and 20bb heads-up is not a shallower version of the same game — it is
+close to push/fold, with an SPR low enough that most postflop strategy collapses
+out. So the tables are for a different game as well as a smaller one.
+
+**The opponent-modelling objection stands.** There is still none.
+
+Its own documentation remains the most honest thing about it — it says the
+figures are "the equilibrium of the **ABSTRACTION**", not of No-Limit Hold'em.
+Its reported convergence on that abstraction is 0.015534 at 1k iterations
+falling to 0.002215 at 25k.
+
+**Revisit condition, restated:** the original said "if the licence is clarified
+*and* the abstraction grows to four streets with a meaningfully larger bucket
+count". The licence half is now met. The abstraction half is not, and the stack
+depth adds a third requirement that was not previously visible. The conjunction
+is unmet, so the decision stands.
+
+**What was taken from it instead.** The one use this ADR sanctions — Kuhn poker
+as a correctness reference, since it has a known closed-form value — was
+implemented directly rather than by adding a dependency. `src/solver/` reaches
+Kuhn's −1/18 to within 6e−9 and solves Leduc to 1.74e−3 exploitability at
+288 infosets. That 288 matches poker-darwin's own reported infoset count for
+Leduc, which makes it a genuine independent cross-check of both implementations
+rather than a number checked against itself.
+
+---
+
+**Original decision follows, unchanged.**
 
 ## Context
 

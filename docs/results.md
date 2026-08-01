@@ -142,15 +142,70 @@ forward across hands and compares the two configurations on the same deals from
 the same seats, so the interval is on the paired *difference* rather than on two
 independent means.
 
-At 1,200 hands per opponent the answer on the held-out suite is "no difference
-measured" everywhere, with intervals of ±44 to ±81 bb/100. That is not a
-disappointing result so much as an illustration of the sample-size arithmetic in
-[the research](plan/01-research.md): fold-to-c-bet alone needs roughly 3,840
-hands to stabilise to ±5%.
+60,000 duplicate-paired hands per opponent, seed 1. The interval is on the
+**paired difference** between the two configurations on identical deals from
+identical seats, which is a far sharper test than comparing two independent
+means.
 
-Larger runs are in progress; whatever they say goes here, including if the
-answer is no. Per ADR-005, opponent modelling ships **off by default** unless it
-can be shown to beat its own baseline.
+### FAMILIAR
+
+| Opponent | adaptive | baseline | delta | 95% CI | |
+|---|---|---|---|---|---|
+| callingStation | +330.50 | +452.61 | **−122.10** | ± 14.74 | adaptive worse |
+| nit | +29.78 | +29.74 | +0.04 | ± 3.71 | no difference |
+| maniac | +579.23 | +516.42 | +62.81 | ± 25.94 | adaptive better |
+| alwaysMinRaise | +211.76 | +193.12 | +18.64 | ± 17.73 | adaptive better |
+| alwaysFold | +56.56 | +58.49 | −1.93 | ± 0.13 | adaptive worse |
+| alwaysCall | +257.48 | +322.68 | **−65.21** | ± 15.89 | adaptive worse |
+| loosePassiveMixer | +228.47 | +242.94 | −14.47 | ± 16.84 | no difference |
+| tightAggressive | −0.55 | −0.77 | +0.22 | ± 6.10 | no difference |
+
+### HELD OUT
+
+| Opponent | adaptive | baseline | delta | 95% CI | |
+|---|---|---|---|---|---|
+| boardTextureReactive | +163.41 | +171.47 | −8.05 | ± 11.77 | no difference |
+| stackDepthShover | +51.71 | +51.73 | −0.02 | ± 0.72 | no difference |
+| tiltAfterLoss | +25.99 | +19.42 | +6.57 | ± 7.20 | no difference |
+| positionBlind | +46.47 | +61.69 | −15.22 | ± 8.08 | adaptive worse |
+| sizingTell | −24.48 | −22.17 | −2.32 | ± 6.33 | no difference |
+
+**Claim 2 does not hold.** Not a single held-out opponent shows the adaptive
+configuration ahead with the interval excluding zero, and one shows it
+significantly *behind*.
+
+### The interesting part: adaptation is not neutral, it is negative
+
+The familiar suite is where this gets sharp. Against a calling station the
+opponent model costs **−122.10 ± 14.74 bb/100**, and against `alwaysCall`
+**−65.21 ± 15.89**. Those are not noise and they are not small.
+
+This reproduces, in a hobby project, the specific result
+[ADR-005](adrs/005-opponent-modelling.md) was written around: a restricted Nash
+response built on a thin sample measured at **−120 mb/g, worse than simply
+playing the equilibrium**. Best-responding to an incomplete read is not weak
+exploitation; it is negative EV. The number here is startlingly close to the
+published one.
+
+The mechanism is visible in the two opponents it hurts most. Both call far too
+much. The model reads them as passive and as folding rarely, which shifts weight
+toward value-betting and away from bluffing — a correct direction — but the
+regularised deviation cannot capture the far larger edge that was already
+available against them, and the shift it does make gives up part of it. Against
+`maniac` and `alwaysMinRaise`, where the leak is aggression rather than
+calling, adaptation helps.
+
+So the honest summary is not "opponent modelling does nothing". It is: **it
+helps against aggressive leaks, hurts badly against passive ones, and on
+opponents it has never seen it does nothing measurable.** That is a more useful
+finding than a flat null, and it is a concrete lead — the advantage terms in
+`src/model/exploit.ts` for the passive direction are the thing to look at, and
+they should be developed against a familiar opponent and only then re-measured
+here.
+
+Per ADR-005, opponent modelling therefore ships **off by default**. The reads
+are still computed, still shown with their observation counts, and still persist
+across visits; what is switched off is letting them move the strategy.
 
 ## Interface
 
