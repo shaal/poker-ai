@@ -96,6 +96,13 @@ it does, it is sealed until the hand ends.
   `implementationType = 'wasm'`. `npm run probe:vector` proves it by using it.
   See [ADR-006](docs/adrs/006-no-vector-database.md) and
   [ADR-011](docs/adrs/011-ruvector-for-offline-clustering.md).
+- **Never trust "solved" either — ask what it scored the leaves with.** The
+  b-inary/poker-cfr preflop dataset is an exact equilibrium at 3.3e−7 bb, and
+  the roadmap had it as the cheapest win available. It solves *preflop-only*
+  hold'em, where every call runs the board out with no betting, so the button
+  limps AA and the big blind raises every hand facing a limp. Licence, format
+  and convergence were all fine; the objective function was the problem.
+  `npm run probe:preflop` and [ADR-017](docs/adrs/017-solved-preflop-charts-not-adopted.md).
 
 ## Commands
 
@@ -105,6 +112,7 @@ npm test                 # 95 tests: engine, solver, strategy, model, bench
 npm run generate         # static export to .output/public
 npm run bench            # scripts/bench.ts — bb/100 with 95% CIs
 npm run probe:vector     # insert-then-query harness for ruvector
+npm run probe:preflop    # what the solved preflop dataset actually solved
 
 npx tsx scripts/bench.ts --strategy=ai --hands=40000 --seed=20260731
 npx tsx scripts/adaptive.ts --hands=60000 --seed=1    # ADR-002 claim 2

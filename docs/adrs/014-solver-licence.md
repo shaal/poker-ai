@@ -54,8 +54,12 @@ Concretely, and already done in the commit that accepted this:
 
 BSD-2 code such as [b-inary/poker-cfr](https://github.com/b-inary/poker-cfr) is
 compatible inside an AGPL work; its copyright notice must be preserved verbatim
-wherever its output or code is used. That adoption was already unblocked and
-remains so.
+wherever its output or code is used.
+
+**The "clean adopt" claim below about poker-cfr did not survive contact —
+see [ADR-017](017-solved-preflop-charts-not-adopted.md).** Its dataset solves
+preflop-only poker, in which the button limps AA and the big blind raises every
+hand facing a limp. Its licence was never the problem. Its leaf evaluation is.
 
 ### Why not the other two
 

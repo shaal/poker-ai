@@ -139,7 +139,10 @@ working in-browser GTO solver. It is also:
 Cleanly-licensed precomputed data:
 [b-inary/poker-cfr](https://github.com/b-inary/poker-cfr) (BSD-2) ships a
 heads-up preflop Nash dataset at ~12.6 MB. Preflop charts themselves gzip to
-**under 100 KB**.
+**under 100 KB**. *(The dataset is Nash for preflop-only hold'em, not for the
+game this project plays — see
+[ADR-017](../adrs/017-solved-preflop-charts-not-adopted.md). "Cleanly-licensed"
+was the only property checked here.)*
 
 ## Abstraction
 

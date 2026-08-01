@@ -107,7 +107,12 @@ before any code existed:
 - **[b-inary/poker-cfr](https://github.com/b-inary/poker-cfr)** — BSD-2, ships a
   heads-up preflop Nash dataset at ~12.6 MB. That replaces the hand-authored
   charts in `src/strategy/charts.ts` with solved ones, immediately, for the cost
-  of a download and a parser.
+  of a download and a parser. **It does not:
+  [ADR-017](../adrs/017-solved-preflop-charts-not-adopted.md).** The download and
+  the parser both worked; what came out was an exact solution to preflop-only
+  hold'em, which is a different game. Its CFR+ tree is still the right starting
+  point for a preflop re-solve once there are postflop leaf values to score it
+  with.
 - **[pokers](https://crates.io/crates/pokers)** — wasm-clean, verified: no
   `build.rs`, no filesystem access in `src/`, tables checked in.
 - **[rs-poker](https://crates.io/crates/rs-poker)** — Apache-2.0, actively
