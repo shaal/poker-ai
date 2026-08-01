@@ -25,7 +25,7 @@ never tested; an ADR that did not survive says so.
 | [011](011-ruvector-for-offline-clustering.md) | ruvector offline only, never for opponent modelling | Its blind-stub failure mode was reproduced live. Leverage is small and says so |
 | [012](012-rust-solver-service.md) | The solver becomes a Rust service | JS is 10–50x too slow for a regret loop. Search is the only route past LBR |
 | [013](013-training-data-is-generated-not-collected.md) | Learn from solvers, not from professionals | Imitation caps below what it imitates; hand histories are biased by showdown |
-| [014](014-solver-licence.md) | **Which solver we may stand on — UNDECIDED** | No permissive HUNL postflop solver exists. **Needs a human decision** |
+| [014](014-solver-licence.md) | **The project is AGPL-3.0** | No permissive HUNL postflop solver exists. Decided 2026-08-01; relicensing is now foreclosed |
 | [015](015-best-response-probe-in-the-ship-gate.md) | An LBR probe joins the ship gate | Scripted archetypes cannot find exploitable holes. One cost us a held-out opponent |
 | [016](016-strength-floor-not-ceiling.md) | A strength floor, not a ceiling | Even fully built it is −8 bb/100 to a pro. Explaining a weak policy is negative pedagogy |
 
@@ -52,7 +52,9 @@ Three more decide where it goes next.
 
 **[012](012-rust-solver-service.md) is the only change that buys real strength.**
 Search at play time, in a language that can do it.
-**[014](014-solver-licence.md) blocks it** and needs a human. And
+**[014](014-solver-licence.md) used to block it and no longer does** — the
+project is AGPL-3.0, so an AGPL solver may be adopted and served, and the price
+paid for that is that this can never be relicensed. And
 **[016](016-strength-floor-not-ceiling.md) says how far to take it**, which is
 less far than instinct wants.
 

@@ -112,9 +112,11 @@ before any code existed:
   `build.rs`, no filesystem access in `src/`, tables checked in.
 - **[rs-poker](https://crates.io/crates/rs-poker)** — Apache-2.0, actively
   maintained.
-- **wasm-postflop** is AGPL, so it cannot be adopted into a permissively-licensed
-  product — but it remains the best available reference for how a browser-scale
-  postflop solver is structured.
+- **wasm-postflop** is AGPL. Written when that was disqualifying; since
+  [ADR-014](../adrs/014-solver-licence.md) the project is itself AGPL-3.0, so
+  the licence is no longer the obstacle — [ADR-004](../adrs/004-no-in-browser-cfr.md)'s
+  memory and latency figures still are. It remains the best available reference
+  for how a browser-scale postflop solver is structured.
 
 Commercial solvers are also usable as an **offline oracle for tests** — checking
 our output against theirs on fixed spots — which is a different thing from

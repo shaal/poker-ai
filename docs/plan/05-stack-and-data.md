@@ -95,6 +95,10 @@ what exists.
 
 ## The licensing fork, which nobody flagged
 
+**Resolved on 2026-08-01: road 1 was taken and the project is AGPL-3.0.** See
+[ADR-014](../adrs/014-solver-licence.md), which is the decision; what follows is
+the research that framed it and is left as written.
+
 This is the part where the outside recommendation needed correcting, and it is
 the same trap [ADR-004](../adrs/004-no-in-browser-cfr.md) already avoided once.
 

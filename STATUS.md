@@ -22,25 +22,27 @@ By [ADR-009](docs/adrs/009-held-out-benchmark-discipline.md) it **does not ship
 as finished**: it loses to a held-out opponent. That is recorded, not worked
 around.
 
-## Blocked on a human decision
+## Nothing is blocked any more
 
-**[ADR-014](docs/adrs/014-solver-licence.md) is `Proposed`, not `Accepted`, and
-it blocks the whole strength roadmap.**
+**[ADR-014](docs/adrs/014-solver-licence.md) was accepted on 2026-08-01: the
+project is AGPL-3.0-or-later.** `LICENSE` is at the root and `package.json`
+declares it. An AGPL postflop solver — TexasSolver is the obvious one — may now
+be adopted, linked against, and served over a network, which is what
+[ADR-012](docs/adrs/012-rust-solver-service.md) was waiting on.
 
-There is no permissively-licensed heads-up NLHE postflop solver to adopt.
-TexasSolver — the obvious one — is **AGPL-3.0**, and the proposed architecture
-runs a solver as a network service, which is exactly what AGPL's network clause
-covers. Three roads:
+What was bought and what it cost, so nobody re-opens it by accident:
 
-1. **Accept AGPL for the project.** Cheapest by far, fine for a personal
-   open-source project, permanently forecloses relicensing.
-2. **Use an AGPL solver strictly offline** for training targets and as a test
-   oracle. More defensible than serving it; genuinely murkier.
-3. **Write the postflop solver.** Full licence freedom, costs the months that
-   were meant to go into the product.
-
-**An agent must not decide this.** Ask, record the answer in ADR-014, change its
-status, and only then start [ADR-012](docs/adrs/012-rust-solver-service.md) work.
+- **Bought:** the solver is adopted rather than written, saving the months
+  [ADR-016](docs/adrs/016-strength-floor-not-ceiling.md) wants spent on the
+  explanation layer. And because the frontend carries the same licence as the
+  service, the "does section 13 reach the frontend" coupling question does not
+  arise at all.
+- **Cost:** relicensing is permanently foreclosed, and reuse narrows — nobody
+  can lift a component of this into a closed product.
+- **Outstanding, and easy to forget:** a public deployment owes its players a
+  source offer. A footer link to the repository pinned to the deployed commit,
+  due the first time this is hosted anywhere public — *not* when the solver
+  lands.
 
 ## Next actions, in order
 
@@ -62,7 +64,7 @@ look at the held-out row **once**.
 *Done when:* the new familiar opponent exists in a separate commit from the fix,
 and the held-out suite has been measured once with constants frozen.
 
-**3. A river-only re-solver in Rust.** Blocked on ADR-014.
+**3. A river-only re-solver in Rust.** Unblocked as of 2026-08-01.
 One street, no future to model, small enough to solve exactly. Proves the whole
 architecture — range plumbing, round trip, latency budget. It is also a
 diagnostic with a sharp reading: **if a working river re-solver still cannot

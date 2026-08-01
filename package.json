@@ -2,6 +2,7 @@
   "name": "poker-ai",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "description": "Heads-up No-Limit Texas Hold'em against an opponent that shows its working",
   "scripts": {
