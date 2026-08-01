@@ -14,6 +14,7 @@ import type { Policy } from '../src/engine/holdem'
 import { FAMILIAR, tightAggressive } from '../src/bench/opponents/familiar'
 import { HELD_OUT } from '../src/bench/opponents/heldout'
 import { formatTable, runSuite, type PolicyFactory, type SuiteRow } from '../src/bench/run'
+import type { Opponent } from '../src/bench/types'
 import { significant } from '../src/bench/stats'
 
 function arg(name: string, fallback: number): number {
@@ -71,10 +72,40 @@ function verdict(rows: readonly SuiteRow[]): string {
   return 'clears the held-out suite'
 }
 
+/**
+ * `--suite=familiar` exists to make ADR-009's first rule followable rather than
+ * merely stated. Developing a change means running the bench repeatedly, and
+ * the default prints the held-out table every time — so the rule "do not tune
+ * against held out" asks you to un-see a number that is on your screen twenty
+ * times a day. This lets a development loop not print it at all.
+ *
+ * `--only=` filters rows by name. Per-row seeds are derived from the opponent's
+ * name (`run.ts`), so a filtered run reports exactly what the full run would
+ * have reported for those rows — it buys precision on two opponents without
+ * paying for thirteen.
+ */
+function suiteFilter(rows: readonly Opponent[]): readonly Opponent[] {
+  const only = argStr('only', '')
+  if (!only) return rows
+  const wanted = new Set(only.split(',').map((s) => s.trim()).filter(Boolean))
+  const known = new Set([...FAMILIAR, ...HELD_OUT].map((o) => o.name))
+  for (const w of wanted) {
+    // Silently returning an empty table for a typo would look like a clean run.
+    if (!known.has(w)) throw new Error(`--only names no such opponent: "${w}"`)
+  }
+  return rows.filter((r) => wanted.has(r.name))
+}
+
 async function main() {
   const hands = arg('hands', 20_000)
   const seed = arg('seed', 1)
   const name = argStr('strategy', 'tightAggressive')
+  const suite = argStr('suite', 'both')
+  if (!['both', 'familiar', 'held'].includes(suite)) {
+    console.error(`unknown --suite="${suite}". expected: both, familiar, held`)
+    process.exit(1)
+    return
+  }
 
   const all = await strategies()
   const hero = all[name]
@@ -89,13 +120,21 @@ async function main() {
   console.log('')
 
   const t0 = Date.now()
-  const familiar = runSuite(hero, FAMILIAR, opts)
-  console.log(
-    formatTable(familiar, 'FAMILIAR — development only. Tuned against, therefore not evidence.'),
-  )
-  console.log('')
+  if (suite !== 'held') {
+    const familiar = runSuite(hero, suiteFilter(FAMILIAR), opts)
+    console.log(
+      formatTable(familiar, 'FAMILIAR — development only. Tuned against, therefore not evidence.'),
+    )
+    console.log('')
+  }
 
-  const held = runSuite(hero, HELD_OUT, opts)
+  if (suite === 'familiar') {
+    console.log('HELD OUT not run (--suite=familiar). Nothing here decides whether a change ships.')
+    console.log(`${((Date.now() - t0) / 1000).toFixed(1)}s`)
+    return
+  }
+
+  const held = runSuite(hero, suiteFilter(HELD_OUT), opts)
   console.log(
     formatTable(held, 'HELD OUT — frozen constants. THIS SUITE DECIDES WHETHER A CHANGE SHIPS.'),
   )
