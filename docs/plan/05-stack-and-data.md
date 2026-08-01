@@ -139,6 +139,14 @@ Rust, and it covers exactly the preflop layer where this project currently ships
 hand-authored charts. Replacing guessed charts with solved ones is a real gain
 for very little work.
 
+> **Wrong, and withdrawn on 2026-08-01 —
+> [ADR-017](../adrs/017-solved-preflop-charts-not-adopted.md).** The dataset was
+> opened rather than assumed. It is an exact equilibrium (3.3e−7 bb) of
+> *preflop-only* hold'em, where every call runs the board out with no betting:
+> the button limps AA, raises 22, and the big blind raises every hand in the
+> deck facing a limp. Its licence was checked here and its objective function
+> was not. `npm run probe:preflop` reproduces all of it.
+
 ## Does any of this beat professionals?
 
 No. It moves the number and does not change the weight class.

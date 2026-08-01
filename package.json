@@ -16,7 +16,8 @@
     "typecheck": "nuxt typecheck",
     "bench": "tsx scripts/bench.ts",
     "solve": "tsx scripts/solve.ts",
-    "probe:vector": "tsx scripts/probe-vector.ts"
+    "probe:vector": "tsx scripts/probe-vector.ts",
+    "probe:preflop": "tsx scripts/probe-preflop.ts"
   },
   "dependencies": {
     "nuxt": "^4.5.1",

@@ -44,16 +44,22 @@ What was bought and what it cost, so nobody re-opens it by accident:
   due the first time this is hosted anywhere public — *not* when the solver
   lands.
 
+## Closed since the last session
+
+**Adopting b-inary/poker-cfr for preflop was the top roadmap item. It is now
+closed, negative** — [ADR-017](docs/adrs/017-solved-preflop-charts-not-adopted.md),
+2026-08-01. The dataset decodes exactly and is a genuine equilibrium (3.3e−7 bb)
+of *preflop-only* hold'em, in which every call runs the board out with no
+betting. So the button limps AA 100%, raises 22 100%, folds 32s but never folds
+T2s, and the big blind raises every hand in the deck facing a limp. It also
+cannot be installed: 34.3% of the solved strategy is limps, and our button node
+has no limp action and one raise size the solution never uses.
+`npm run probe:preflop` reproduces all of it. Preflop stays hand-authored, which
+is a real weakness and is now written down rather than assumed away.
+
 ## Next actions, in order
 
-**1. Adopt [b-inary/poker-cfr](https://github.com/b-inary/poker-cfr) for preflop.**
-Not blocked by anything. BSD-2, Rust, and it covers exactly the layer where
-`src/strategy/charts.ts` currently ships charts I wrote by hand and tuned by eye.
-Replacing guessed charts with solved ones is a real gain for little work.
-*Done when:* the charts come from the dataset, the bench has been re-run, and
-`docs/results.md` records whether it helped or not.
-
-**2. Kill the `s/(1+s)` villain bluff-composition model.**
+**1. Kill the `s/(1+s)` villain bluff-composition model.**
 The tracker infers *more* bluffs from a *bigger* bet, because that is what a
 balanced opponent would do. Almost nobody is balanced, and an opponent who bets
 big only when strong inverts it — which is the `sizingTell` loss.
@@ -64,14 +70,14 @@ look at the held-out row **once**.
 *Done when:* the new familiar opponent exists in a separate commit from the fix,
 and the held-out suite has been measured once with constants frozen.
 
-**3. A river-only re-solver in Rust.** Unblocked as of 2026-08-01.
+**2. A river-only re-solver in Rust.** Unblocked as of 2026-08-01.
 One street, no future to model, small enough to solve exactly. Proves the whole
 architecture — range plumbing, round trip, latency budget. It is also a
 diagnostic with a sharp reading: **if a working river re-solver still cannot
 beat `tightAggressive` with a tight interval, the problem is the ranges being
 fed in, not the search.**
 
-**4. The LBR probe in the ship gate** ([ADR-015](docs/adrs/015-best-response-probe-in-the-ship-gate.md)).
+**3. The LBR probe in the ship gate** ([ADR-015](docs/adrs/015-best-response-probe-in-the-ship-gate.md)).
 Calibrate it against a known-bad strategy: `alwaysFold` should lose horribly to
 it. If it does not, the probe is too weak to mean anything.
 

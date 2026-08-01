@@ -5,7 +5,7 @@ Each records what was decided, what it costs, and what would justify reopening
 it. The evidence behind them is in [`../plan/01-research.md`](../plan/01-research.md),
 and what the benchmark actually measured is in [`../results.md`](../results.md).
 
-**001–010 were written before any code existed. 011–016 came out of building it
+**001–010 were written before any code existed. 011–017 came out of building it
 and measuring it**, which is why several of them amend an earlier one rather than
 standing alone. An ADR that survived contact is worth more than one that was
 never tested; an ADR that did not survive says so.
@@ -28,6 +28,7 @@ never tested; an ADR that did not survive says so.
 | [014](014-solver-licence.md) | **The project is AGPL-3.0** | No permissive HUNL postflop solver exists. Decided 2026-08-01; relicensing is now foreclosed |
 | [015](015-best-response-probe-in-the-ship-gate.md) | An LBR probe joins the ship gate | Scripted archetypes cannot find exploitable holes. One cost us a held-out opponent |
 | [016](016-strength-floor-not-ceiling.md) | A strength floor, not a ceiling | Even fully built it is −8 bb/100 to a pro. Explaining a weak policy is negative pedagogy |
+| [017](017-solved-preflop-charts-not-adopted.md) | The solved preflop dataset is not adopted | It is exact — for preflop-only poker, where the button limps AA. **Amends 014** |
 
 ## The short version
 
