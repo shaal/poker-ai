@@ -38,7 +38,7 @@ import {
   type Range,
   rankRangeOnBoard,
 } from './ranges'
-import { bluffFraction, mdf } from './policy'
+import { mdf } from './policy'
 
 /** How many aggressive actions have happened preflop: 1 = open, 2 = 3-bet... */
 export function preflopLevel(history: readonly ActionRecord[]): number {
@@ -137,6 +137,14 @@ const POPULATION_MODEL = {
 /** What a bet means from someone constructing ranges the way our baseline does. */
 const BALANCED_MODEL = {
   valueTop: 0.32,
+  /**
+   * Not read anywhere, and it was already dead before the bluff region stopped
+   * depending on bet size — the old code derived the balanced bluff budget from
+   * `valueTop` and the bet size instead of using this. Kept because it states
+   * what the balanced model's bluff region would be, and deleting it would make
+   * the two models look asymmetric for no reason. It is documentation, not a
+   * knob: nothing changes if you edit it.
+   */
   bluffBottom: 0.35,
   middleWeight: 0.12,
   checkTopWeight: 0.25,
@@ -179,15 +187,40 @@ export function narrowOnAction(
   const pct = percentilesOf(ranked)
 
   if (action.type === 'bet' || action.type === 'raise') {
-    const s = Math.max(0.1, action.size)
-    const alpha = bluffFraction(s)
-    // The bluff region is the theorem's answer for a balanced opponent and the
-    // population's much smaller answer for an unknown one. Real players
-    // under-bluff, so crediting them with a balanced bluff budget is the
-    // single easiest way to talk ourselves into a bad call.
-    const balancedBluff = Math.min(0.45, (BALANCED_MODEL.valueTop * alpha) / Math.max(0.05, 1 - alpha))
-    const bluffBottom =
-      lerp(POPULATION_MODEL.bluffBottom, balancedBluff, t) * bluffMul
+    // The bluff region does NOT depend on the bet size, and that is a deletion,
+    // not an oversight. It used to: `bluffBottom` interpolated toward the
+    // balanced budget `BALANCED_MODEL.valueTop * a / (1 - a)` for
+    // `a = bluffFraction(s)`, so a bigger bet credited the villain with more
+    // bluffs and we called wider.
+    //
+    // `s/(1+s)` is a theorem about what a BALANCED opponent must do to make us
+    // indifferent. It is a prescription for them, and this function was using
+    // it as a description of them — which quietly assumes the opponent is
+    // balanced. For the players this project targets the assumption is not just
+    // weak, it is anti-correlated: recreational players bet big with strong
+    // hands and small with weak ones, so the inference ran backwards on exactly
+    // the population it was written for.
+    //
+    // Measured, against a familiar opponent built for this and its flat-sized
+    // control (see docs/results.md): removing the size dependence is worth
+    // +11.43 ± 6.32 bb/100 against the sizing opponent and +1.96 ± 5.29 against
+    // the control, a difference of +9.47 ± 8.24 that excludes zero. Three other
+    // candidate fixes were measured and none of them cleared that bar, notably
+    // including the clever one — keeping the term and inverting its sign scored
+    // WORSE than deleting it.
+    //
+    // The cost is real and is not hidden here: against `maniac`, who genuinely
+    // does bluff constantly with big bets, this loses 51.66 ± 48.16 bb/100,
+    // because the wrong-signed model was accidentally right about him. That is
+    // the price of refusing to read a signal whose direction we cannot
+    // determine in advance, and it buys not being exploited by the far more
+    // common opponent who has it the other way round.
+    //
+    // Reading size CORRECTLY is still on the table and is strictly better than
+    // either. It needs the sign to be estimated per opponent rather than
+    // assumed, which is opponent modelling, which per ADR-005 measures negative
+    // and ships off. So: not now, and not by guessing.
+    const bluffBottom = POPULATION_MODEL.bluffBottom * bluffMul
     for (let i = 0; i < ranked.length; i++) {
       const p = pct[i]!
       if (p >= 1 - valueTop) setWeight(ranked[i]!.combo, 1)
