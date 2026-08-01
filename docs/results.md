@@ -10,6 +10,12 @@ Reproduce with:
 ```
 npx tsx scripts/bench.ts --strategy=ai --hands=40000 --seed=20260731
 npx tsx scripts/adaptive.ts --hands=60000 --seed=1
+
+# Phase 5 — the sizing pair and its control. --suite=familiar keeps the
+# held-out table off the screen during development, which ADR-009 rule 1
+# is much easier to follow when it is not being printed twenty times a day.
+npx tsx scripts/bench.ts --strategy=ai --hands=200000 --seed=20260801 \
+  --suite=familiar --only=sizedValue,flatValue
 ```
 
 ## Headline
@@ -17,8 +23,14 @@ npx tsx scripts/adaptive.ts --hands=60000 --seed=1
 **The baseline clears the familiar suite and fails the held-out suite.** It
 loses to one held-out opponent at a margin whose interval excludes zero, so by
 the rule in ADR-009 it does not ship as finished. See
-[the failure](#the-failure-sizingtell) below, which is the most useful thing on
-this page.
+[the failure](#the-failure-sizingtell) below.
+
+**The diagnosis recorded for that failure has since been tested and rejected.**
+A fix for it was built under the full ADR-009 procedure, measured +11.43 ± 6.32
+bb/100 against the familiar opponent written to exercise it, and +2.13 ± 6.02 —
+covering zero — against the held-out opponent it was meant to beat. It was
+reverted. [Phase 5](#phase-5--the-sizing-tell-isolated) is the most useful
+section on this page, because it is the one where the discipline cost something.
 
 ## Phase 0 — engine
 
@@ -98,13 +110,22 @@ BIGGER bet implies MORE bluffs. `sizingTell` bets big when it is strong, so the
 model is inverted for exactly this opponent, and the AI calls too light against
 large bets.
 
-**This has deliberately not been fixed.** ADR-009 rule 1: do not tune constants
-against the held-out suite — adjusting a threshold because a held-out row looks
-bad converts that opponent into a familiar one and spends it. Rule 2: do not add
-an opponent in the same change that needs it. The correct next step is a
-separately-authored familiar opponent that exercises sizing-as-information, a
-fix developed against that, and then a fresh look at this row with the constants
-frozen.
+> **That hypothesis was tested and is not supported.** The prescribed procedure
+> below was followed to the letter — a separately-authored familiar opponent, a
+> fix developed against it, constants frozen, one look — and removing the size
+> dependence moved this row by **+2.13 ± 6.02 bb/100**, which covers zero. It
+> was reverted. See [Phase 5](#phase-5--the-sizing-tell-isolated), which is now
+> the more useful section of this file. What remains true is that the mechanism
+> is real and mis-signed; what is false is that it is principally what
+> `sizingTell` punishes.
+
+**This was deliberately not fixed at the time.** ADR-009 rule 1: do not tune
+constants against the held-out suite — adjusting a threshold because a held-out
+row looks bad converts that opponent into a familiar one and spends it. Rule 2:
+do not add an opponent in the same change that needs it. The correct next step
+was a separately-authored familiar opponent that exercises
+sizing-as-information, a fix developed against that, and then a fresh look at
+this row with the constants frozen.
 
 Recording the diagnosis without acting on it is the whole discipline. The
 sibling project's regression happened because a bad result was rescued twice
@@ -206,6 +227,172 @@ here.
 Per ADR-005, opponent modelling therefore ships **off by default**. The reads
 are still computed, still shown with their observation counts, and still persist
 across visits; what is switched off is letting them move the strategy.
+
+## Phase 5 — the sizing tell, isolated
+
+`sizingTell` beat the strategy by 15.61 bb/100, and the recorded hypothesis was
+that `narrowOnAction` infers the villain's bluff region from bet size through
+`bluffFraction(s) = s/(1+s)`: a bigger bet credits them with more bluffs, so we
+call wider — backwards against anyone whose big bets mean strength.
+
+ADR-009 forbids developing that against `sizingTell`, so the work was done
+against a new familiar pair. The second half of the pair is why any of it is
+interpretable.
+
+### The pair, and why there are two of them
+
+`sizedValue` ladders its bet size 0.35 / 0.7 / 1.15 / 1.7 with hand strength and
+bluffs 28% of its air, only ever at its smallest size. `flatValue` is the same
+function with one lambda changed: identical hand classes, identical folds,
+identical preflop play, every postflop bet 0.7 pot. The only difference between
+them is whether bet size carries information.
+
+A single sizing opponent cannot test the hypothesis. We already over-call
+value-heavy ranges in general, so any change that tightened us up would score
+well against a sizing opponent whether or not it had anything to do with size.
+
+### Calibration: the pair is fair
+
+| hero | vs `sizedValue` | vs `flatValue` | gap |
+|---|---|---|---|
+| `tightAggressive` — size-blind, no opponent model at all | +2.10 ± 3.54 | +5.13 ± 3.24 | 3.03 ± 4.80, noise |
+| the AI, before the change | **−17.99 ± 4.51** | **+9.43 ± 3.76** | **27.42 ± 5.87** |
+
+A thirty-line script is indifferent between the two, so `sizedValue` is not
+intrinsically the harder opponent and the AI's 27 bb/100 swing was its own
+reading. The same script was **beating the AI by 20 bb/100** against
+`sizedValue`, and the only thing that opponent does differently is let its size
+mean something.
+
+### The ablation
+
+Each arm is one change from baseline. `d` is arm minus baseline; the
+difference-of-differences is `d(sized) − d(flat)`. Intervals are added in
+quadrature across independent runs, which is the pessimistic bound — deal-level
+common random numbers were not implemented. 200,000 duplicate-paired hands per
+row, seed 20260801.
+
+| arm | d(`sizedValue`) | d(`flatValue`) | diff-of-diffs | leaves `sizedValue` at |
+|---|---|---|---|---|
+| **A — `bluffBottom` stops depending on bet size** | **+11.43 ± 6.32** | +1.96 ± 5.29 | **+9.47 ± 8.24, excludes zero** | −6.56 ± 4.43 |
+| B — population `middleWeight` 0.5 → 0.2 | +7.67 ± 6.30 | +1.97 ± 5.23 | +5.70 ± 8.19, includes zero | −10.32 ± 4.40 |
+| D — default `polarisation` 0.3 → 0.05 | +3.25 ± 6.37 | −1.63 ± 5.36 | +4.88 ± 8.33, includes zero | −14.74 ± 4.50 |
+| C — D plus the population bluff term inverted | +6.84 ± 6.31 | −0.92 ± 5.32 | +7.76 ± 8.25, includes zero | −11.15 ± 4.41 |
+
+The criterion — an arm is about size inference only if it helps `sizedValue`
+materially more than `flatValue` with the interval excluding zero — was
+registered in a commit before any arm was run. **Exactly one arm meets it, and
+it is the blunt one.** Deleting the size dependence beat inverting it, beat
+fixing the level, and beat correcting the polarisation prior.
+
+### The arm that was measured and not shipped
+
+A+B — the deletion plus `middleWeight` 0.5 → 0.2 — took `sizedValue` to
+**+3.70 ± 4.07**, turning the loss into noise, and `flatValue` to +15.51 ± 3.54.
+On chips it is the better strategy against both.
+
+It was rejected, against a rule written down before the deciding suite was run.
+Across the full familiar suite at 40,000 hands it significantly regresses three
+rows relative to A:
+
+| | A+B − A |
+|---|---|
+| `maniac` | −91.69 ± 46.86 |
+| `alwaysMinRaise` | −55.32 ± 32.43 |
+| `loosePassiveMixer` | −38.34 ± 22.32 |
+
+All three are wide, merged bettors, which is the exact case `middleWeight = 0.5`
+exists to model — and both halves of the new pair bet a value-heavy, *non*-merged
+range. So B was fitting a property of the two opponents written the previous day
+rather than anything about the population. `callingStation`, the row that
+prompted the suspicion, did not itself regress significantly (−10.69 ± 28.35);
+the class prediction held where the specific one did not.
+
+### What the change would have cost
+
+Against `maniac`, who genuinely does bluff constantly with big bets, A loses
+**51.66 ± 48.16 bb/100** — marginally significant — because the wrong-signed
+model was accidentally right about him. Nothing else in the familiar suite moves
+outside its interval. That is the price of refusing to read a signal whose
+direction cannot be determined in advance, and once the held-out row came back
+flat it was the only demonstrated effect the change had on any opponent that was
+not written for this experiment.
+
+### What is honest about all of this
+
+**A was never a whole fix even on its own terms.** It left `sizedValue` at
+−6.56 ± 4.43, still a significant loss, and still worse than the size-blind
+script's +2.10. It removed a channel that was demonstrably signed wrong. It did
+not make the strategy good at reading bet size.
+
+**The sign is more trustworthy than the magnitude.** Four arms were run and only
+A's interval excludes zero, so the family-wise error rate is above 5% even though
+A was the pre-registered primary. And part of the diff-of-diffs is leverage
+rather than reading: `sizedValue` puts more money into exactly the pots where the
+misreading bites. The defensible claim is "a wrong-signed channel was removed",
+not "9.5 bb/100 of sizing skill was gained".
+
+**Two hypotheses died here and one of them was the clever one.** An outside
+review argued that `middleWeight = 0.5` — half the villain's middling hands
+surviving any bet — was at least as likely to be the primary cause as the
+theorem was; it measured smaller than A with an interval covering zero. And the
+design that looked best on paper, keeping `s/(1+s)` but reading it as
+value-concentration rather than bluff share, measured *worse than deleting the
+term*. That same review caught, before it was run, that it would not have
+inverted anything at the default polarisation: at `t = 0.3` the balanced term
+still drags the bluff region from 0.086 to 0.161 across the sizes in play. It
+only inverts below `t ≈ 0.1`.
+
+### The held-out look, and what it said
+
+Constants frozen, one look, at the seed and hand count that produced the
+recorded −15.61 so the comparison would be direct. The first look was taken at
+40,000 hands and was **underpowered**: it put the difference at −2.60 ± 13.72
+when the effect being tested for was about +11. That is a design error in the
+look rather than a result, and it was repaired by re-running the *same frozen
+constants* at 200,000 hands. Nothing was adjusted between the two looks.
+
+| `sizingTell`, 200,000 hands, seed 20260731 | bb/100 |
+|---|---|
+| baseline | −20.21 ± 4.29 |
+| with the change | −18.08 ± 4.23 |
+| **difference** | **+2.13 ± 6.02 — covers zero** |
+
+**So the change was reverted.** Against `sizedValue`, the familiar opponent
+written to exercise this exact mechanism, it measured +11.43 ± 6.32 and the
+interval excluded zero. Against `sizingTell`, the held-out opponent that
+motivated the entire exercise, it measured +2.13 ± 6.02 with a point estimate
+five times smaller. No other held-out row moved outside its interval either.
+
+That is the sibling project's documented failure reproduced almost exactly — a
+change measuring well against a benchmark it was co-designed with and flat
+against one it was not — and ADR-009 rule 4 caught it. The revert was
+pre-committed before the number was seen, which is the only reason it is
+trustworthy: a rule adopted after the result is not a rule.
+
+Outside the two opponents written for this experiment, the only measurable
+effect the change had anywhere was the 51.66 bb/100 regression against `maniac`.
+
+### What was actually bought
+
+Not a fix. Three things worth more than the change would have been:
+
+1. **`sizingTell`'s cause is now known not to be principally this.** The
+   hypothesis in the previous section of this file was plausible, specific, and
+   wrong, and it can be struck off rather than left as a standing guess.
+2. **The mechanism is real but small.** The size-to-bluff inference genuinely is
+   signed backwards for the population, and removing it is worth double-digit
+   bb/100 against an opponent that leans on it. It is simply not what
+   `sizingTell` is punishing.
+3. **The sign cannot be fixed by assuming it.** Not in either direction —
+   inverting scored worse than deleting. It has to be estimated per opponent,
+   which is opponent modelling, which ships off.
+
+The next lead is that `tightAggressive`, with no opponent model at all, beats
+this strategy by 20 bb/100 against `sizedValue` and is level with it everywhere
+else. Whatever `narrowOnAction` is contributing against a sizing opponent, a
+policy that ignores the tracker entirely does better — and that points at the
+tracked range being worse than no range, not at any single constant inside it.
 
 ## Interface
 

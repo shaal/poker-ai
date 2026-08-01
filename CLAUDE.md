@@ -34,10 +34,17 @@ of how easy they are to rationalise away:
 
 This is inherited from a real documented failure in the sibling project, where a
 change measured +0.7pp against a benchmark it had co-designed and −0.5pp against
-one it had not. There is a known open example in this repo: the strategy loses
-to `sizingTell` and the cause is diagnosed in `docs/results.md`. **Do not fix it
-against `sizingTell`.** Write a new familiar opponent that exercises
-sizing-as-information, fix against that, freeze, then look once.
+one it had not. **It has now happened here too, which is the most useful thing
+in `docs/results.md`.** The `sizingTell` loss had a recorded diagnosis; the
+prescribed procedure was followed exactly — new familiar opponent in its own
+commit, plus a flat-sized control, four candidates against a criterion
+registered in advance, constants frozen, one look. The fix measured
++11.43 ± 6.32 bb/100 against the opponent written to exercise it and
++2.13 ± 6.02 against `sizingTell`, which covers zero, and was reverted.
+
+The lesson is not "the rules cost us a good change". It is that following them
+turned a plausible standing guess into a closed question, and the cost of
+finding out was one day rather than a shipped regression.
 
 ### 2. Report what you measured, including when it is bad
 
@@ -108,7 +115,7 @@ it does, it is sealed until the hand ends.
 
 ```
 npm run dev              # play it
-npm test                 # 95 tests: engine, solver, strategy, model, bench
+npm test                 # 97 tests: engine, solver, strategy, model, bench
 npm run generate         # static export to .output/public
 npm run bench            # scripts/bench.ts — bb/100 with 95% CIs
 npm run probe:vector     # insert-then-query harness for ruvector
@@ -116,6 +123,14 @@ npm run probe:preflop    # what the solved preflop dataset actually solved
 
 npx tsx scripts/bench.ts --strategy=ai --hands=40000 --seed=20260731
 npx tsx scripts/adaptive.ts --hands=60000 --seed=1    # ADR-002 claim 2
+
+# --suite=familiar keeps the held-out table off the screen while developing,
+# which makes ADR-009 rule 1 a great deal easier to follow than being told to
+# un-see a number printed twenty times a day. --only= filters rows by name;
+# per-row seeds come from the name, so a filtered run reports exactly what the
+# full run would have, and buys precision on two opponents rather than thirteen.
+npx tsx scripts/bench.ts --strategy=ai --hands=200000 --seed=20260801 \
+  --suite=familiar --only=sizedValue,flatValue
 ```
 
 A 40,000-hand bench run takes ~18 minutes. Run it in the background and keep
@@ -183,10 +198,14 @@ grok -c -p "follow-up in the same session, from the same cwd"
 
 **Built and playable. Measured and honest about being weak.**
 
-- Beats every FAMILIAR opponent significantly; **loses to one HELD OUT**
-  (`sizingTell`, −15.61 ± 9.67), so by ADR-009 it does not ship as finished.
+- Beats every FAMILIAR opponent except the two written to probe bet sizing;
+  **loses to one HELD OUT** (`sizingTell`, −20.21 ± 4.29), so by ADR-009 it does
+  not ship as finished.
 - **Cannot be shown to beat a 30-line script** (`tightAggressive`,
-  +1.24 ± 9.03 — noise). This is the number that matters.
+  +1.24 ± 9.03 — noise). This is the number that matters. Worse: that same
+  script **beats** this strategy by 20 bb/100 against `sizedValue`, which
+  suggests the tracked range is a liability against a sizing opponent rather
+  than an asset.
 - Opponent modelling is **off by default** because it measured negative.
 - The CFR+ solver is verified on Kuhn (−1/18 to 6e−9) and Leduc (288 infosets,
   1.7e−3), and is not the player.

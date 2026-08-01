@@ -14,7 +14,7 @@ The four numbers that matter, all from [docs/results.md](docs/results.md):
 | | |
 |---|---|
 | vs `tightAggressive`, a 30-line script | **+1.24 ± 9.03 bb/100 — noise** |
-| vs `sizingTell`, held out | **−15.61 ± 9.67 — a significant loss** |
+| vs `sizingTell`, held out | **−20.21 ± 4.29 — a significant loss** |
 | Opponent modelling vs a calling station | **−122.10 ± 14.74 — actively harmful, ships off** |
 | CFR+ on Kuhn | −0.055555550 vs the closed form −1/18 — correct |
 
@@ -57,27 +57,46 @@ has no limp action and one raise size the solution never uses.
 `npm run probe:preflop` reproduces all of it. Preflop stays hand-authored, which
 is a real weakness and is now written down rather than assumed away.
 
+## Also closed, negative
+
+**Killing the `s/(1+s)` villain bluff-composition model was the top action. It
+was built, measured, and reverted** — see
+[docs/results.md Phase 5](docs/results.md#phase-5--the-sizing-tell-isolated).
+
+The procedure ADR-009 prescribes was followed exactly: a new familiar opponent
+(`sizedValue`) written in its own commit, plus a flat-sized control (`flatValue`)
+so the comparison could distinguish "reads size better" from "over-calls less";
+four candidate fixes measured against a criterion registered before any of them
+ran; constants frozen; one look.
+
+Removing the size dependence measured **+11.43 ± 6.32 bb/100** against the
+familiar opponent written to exercise it, and **+2.13 ± 6.02** against
+`sizingTell`, which covers zero. A gain against the benchmark it was co-designed
+with and nothing against the one it was not — the sibling project's documented
+failure, reproduced, and caught by the rule that exists for it.
+
+What that bought: `sizingTell`'s cause is now known **not** to be principally
+this, so it stops being a standing guess. The mechanism is real and mis-signed
+but small. And the sign cannot be fixed by assuming it in either direction —
+inverting it scored worse than deleting it, so getting it right means estimating
+it per opponent, which is opponent modelling, which ships off.
+
+**The lead this leaves** is sharper than the one it closed. `tightAggressive`,
+a thirty-line script with no opponent model at all, **beats this strategy by
+20 bb/100** against `sizedValue` and is level with it elsewhere. That points at
+the tracked range being worse than no range against a sizing opponent, rather
+than at any constant inside `narrowOnAction`.
+
 ## Next actions, in order
 
-**1. Kill the `s/(1+s)` villain bluff-composition model.**
-The tracker infers *more* bluffs from a *bigger* bet, because that is what a
-balanced opponent would do. Almost nobody is balanced, and an opponent who bets
-big only when strong inverts it — which is the `sizingTell` loss.
-**Process constraint, non-negotiable:** ADR-009 forbids developing this against
-the held-out opponent that exposed it. Write a *new familiar* opponent that
-exercises sizing-as-information, fix against that, freeze the constants, then
-look at the held-out row **once**.
-*Done when:* the new familiar opponent exists in a separate commit from the fix,
-and the held-out suite has been measured once with constants frozen.
-
-**2. A river-only re-solver in Rust.** Unblocked as of 2026-08-01.
+**1. A river-only re-solver in Rust.** Unblocked as of 2026-08-01.
 One street, no future to model, small enough to solve exactly. Proves the whole
 architecture — range plumbing, round trip, latency budget. It is also a
 diagnostic with a sharp reading: **if a working river re-solver still cannot
 beat `tightAggressive` with a tight interval, the problem is the ranges being
 fed in, not the search.**
 
-**3. The LBR probe in the ship gate** ([ADR-015](docs/adrs/015-best-response-probe-in-the-ship-gate.md)).
+**2. The LBR probe in the ship gate** ([ADR-015](docs/adrs/015-best-response-probe-in-the-ship-gate.md)).
 Calibrate it against a known-bad strategy: `alwaysFold` should lose horribly to
 it. If it does not, the probe is too weak to mean anything.
 
