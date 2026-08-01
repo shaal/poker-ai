@@ -1,6 +1,11 @@
 # ADR-004: No in-browser CFR; all solving happens offline
 
-**Status:** Accepted
+**Status:** Accepted. **Amended by [ADR-012](012-rust-solver-service.md)** — the
+project acquired the server this ADR named as its own revisit condition, so
+solving now happens in a service. **Its licence objection is spent as of
+[ADR-014](014-solver-licence.md)** — the project is AGPL-3.0. Solving still does
+not happen in the browser, and the reasons below that are about memory and
+latency are untouched.
 
 ## Context
 
@@ -13,7 +18,9 @@ It is not a hypothetical. [wasm-postflop](https://github.com/b-inary/wasm-postfl
 impossible" — it is a set of concrete costs:
 
 - **AGPL-3.0.** Network copyleft. Disqualifying for anything that might later
-  want a different licence.
+  want a different licence. *(No longer binding: [ADR-014](014-solver-licence.md)
+  put the whole project under AGPL-3.0, so a different licence is not wanted.
+  The costs below are what still rule out in-browser solving.)*
 - **Development suspended since October 2023**, per the author's own notice.
 - **660 MB (16-bit) to 1.25 GB (32-bit) of memory** for a single flop solve.
   wasm32 hard-caps at 4 GB regardless.
@@ -45,8 +52,10 @@ breaks on wasm32 via a runtime `File::open` and should not be reached for.
 ## Consequences
 
 **Good.** The site stays static, loads fast, and hosts anywhere. No headers to
-configure, no licence entanglement, no multi-second thinking pauses, and mobile
-works.
+configure, no multi-second thinking pauses, and mobile works. *(The fourth
+benefit originally listed here, "no licence entanglement", no longer applies —
+the whole project is AGPL-3.0 under [ADR-014](014-solver-licence.md), so the
+bundle carries that licence whether or not a solver is in it.)*
 
 **Bad.** The AI cannot re-solve a subgame it has never seen. That is precisely
 the capability that separates Libratus and Pluribus from the abstraction-only

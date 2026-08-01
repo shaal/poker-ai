@@ -105,9 +105,10 @@ play time is the only thing that buys real strength, it needs a Rust service,
 and even fully built it measures around −8 bb/100 against a strong professional.
 So the target is a *floor* — beat recreational players convincingly, prove it
 with a best-response probe — and everything else goes into the explanation
-layer. One decision, [ADR-014](docs/adrs/014-solver-licence.md), is blocked
-pending a human: there is no permissively-licensed heads-up postflop solver to
-adopt.
+layer. The one decision that was blocking that road,
+[ADR-014](docs/adrs/014-solver-licence.md), is settled: there is no
+permissively-licensed heads-up postflop solver to adopt, so **this project is
+AGPL-3.0** and may stand on one that is.
 
 ## Questions already settled
 
@@ -136,11 +137,30 @@ reproduces poker-darwin's Leduc infoset count of 288.
 **Will it solve in the browser?** No — see
 [ADR-004](docs/adrs/004-no-in-browser-cfr.md). It is genuinely possible
 ([wasm-postflop](https://github.com/b-inary/wasm-postflop) proves it) at a cost
-of 660 MB–1.25 GB of memory and 33–72 seconds per solve, under AGPL, from a
-project suspended since 2023. ADR-004 named its own revisit condition — "the
+of 660 MB–1.25 GB of memory and 33–72 seconds per solve, from a project
+suspended since 2023. Its AGPL licence was listed as a third cost originally and
+no longer is — see the licence note below. ADR-004 named its own revisit condition — "the
 project acquires a server" — and that condition is now met, which is what
 [ADR-012](docs/adrs/012-rust-solver-service.md) acts on. Solving still does not
 happen in the browser; it happens in a service.
+
+## Licence
+
+**GNU AGPL-3.0-or-later** — see [`LICENSE`](LICENSE).
+
+This is a deliberate choice and it was expensive to make, which is why
+[ADR-014](docs/adrs/014-solver-licence.md) exists. There is no
+permissively-licensed heads-up no-limit postflop solver in the world to adopt;
+the mature one, [TexasSolver](https://github.com/bupticybee/TexasSolver), is
+AGPL-3.0, and [ADR-012](docs/adrs/012-rust-solver-service.md) runs a solver as a
+network service — precisely the case AGPL section 13 is written for. Rather than
+discover after building whether the copyleft reaches the frontend, the whole
+project takes the same licence, and the question stops existing.
+
+The cost is stated plainly in the ADR: **this can never be relicensed**, and
+anyone hoping to lift a piece of it into a closed product cannot. If this is
+ever hosted publicly, users playing against it must be offered the source of the
+version they are playing.
 
 ## Sibling project
 

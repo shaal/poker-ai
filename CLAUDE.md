@@ -189,7 +189,11 @@ See [`STATUS.md`](STATUS.md). It is kept current; a duplicate list here would go
 stale and then mislead.
 
 One thing worth repeating because it is easy to walk past:
-**[ADR-014](docs/adrs/014-solver-licence.md) needs a human decision and blocks
-the strength roadmap.** There is no permissively-licensed heads-up postflop
-solver to adopt, and whether to accept AGPL is a product decision with legal
-consequences. Ask; do not decide it.
+**this project is AGPL-3.0-or-later** ([ADR-014](docs/adrs/014-solver-licence.md),
+accepted 2026-08-01). That is what unblocked the strength roadmap — an AGPL
+postflop solver may be adopted and served. Two things follow for anyone working
+here. Do not add a dependency whose licence is incompatible with AGPL-3.0 —
+permissive licences (MIT, BSD-2, Apache-2.0) may be absorbed into an AGPL work
+and their notices must be preserved; nothing proprietary or GPL-2.0-only may be.
+And do not describe the project as permissively licensed anywhere in
+the docs or the UI — it is not, permanently, and that was the price paid.
