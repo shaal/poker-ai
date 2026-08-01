@@ -21,6 +21,7 @@ import {
   doCall,
   doCheck,
   doFold,
+  type Made,
   madeHand,
   owed,
   potBet,
@@ -169,6 +170,96 @@ export function tightAggressive(rng: Rng): Policy {
   }
 }
 
+// ------------------------------------------- sizing as information, and its control
+
+/**
+ * The four strength tiers `sizedValue` and `flatValue` share.
+ *
+ * Deliberately cut differently from `tightAggressive`'s `cat <= 6 || overpair`
+ * test, so these two are not the same partition wearing a new name.
+ */
+type Tier = 'nuts' | 'strong' | 'thin' | 'air'
+
+function tierOf(m: Made): Tier {
+  if (m.cat <= 4) return 'nuts' // straight or better
+  if (m.cat <= 6) return 'strong' // trips, two pair
+  if (m.cat === 7 && (m.hitsTop || m.overpair)) return 'thin' // top pair, overpair
+  return 'air'
+}
+
+/**
+ * A value-heavy recreational bettor, parameterised ONLY by how it picks a size.
+ *
+ * The two opponents below share this function and differ in exactly one lambda,
+ * which is the entire point of them. `sizedValue` scales its size with its
+ * strength; `flatValue` bets one size with the same hands in the same spots.
+ * They are a matched pair, and the comparison between them is the measurement:
+ *
+ *   A change that reads bet size better should help against `sizedValue` and
+ *   NOT against `flatValue`. A change that helps both equally did not fix size
+ *   inference — it fixed how we play against value-heavy ranges generally, and
+ *   the difference between those two claims is the whole question.
+ *
+ * Preflop sizing is identical in both on purpose. Range narrowing from bet size
+ * only happens postflop (`narrowOnAction`), so holding preflop constant keeps
+ * the contrast on the one channel being tested.
+ *
+ * Note the bluff. It stabs air at its SMALLEST size and never at any other, so
+ * for `sizedValue` a small bet really is bluff-heavy and a large one really is
+ * pure value. That makes it able to distinguish "ignore bet size entirely" from
+ * "read bet size correctly" — the first leaves money on the table against the
+ * small stabs, the second does not. An opponent that only ever punishes
+ * over-calling could not tell those two apart.
+ */
+function valueBettor(rng: Rng, sizeFor: (tier: Tier) => number): Policy {
+  return (s, seat) => {
+    const me = s.players[seat]
+    const c = owed(s, seat)
+
+    if (s.street === 'preflop') {
+      const v = preflopScore(me.hole)
+      if (v >= 0.66) return aggro(s, potBet(s, seat, 0.5))
+      if (v >= 0.38) return c <= 2.5 * BB ? doCall(s) : doFold(s)
+      return c <= 0 ? doCheck(s) : doFold(s)
+    }
+
+    const tier = tierOf(madeHand(me.hole, s.board))
+
+    if (c <= 0) {
+      if (tier === 'air') {
+        // The only bluff it ever makes, and always at its smallest size.
+        return rng.float() < 0.28 ? aggro(s, potBet(s, seat, sizeFor('air'))) : doCheck(s)
+      }
+      return aggro(s, potBet(s, seat, sizeFor(tier)))
+    }
+
+    if (tier === 'nuts') return aggro(s, potBet(s, seat, sizeFor('nuts')))
+    if (tier === 'strong') return doCall(s)
+    if (tier === 'thin') return price(s, seat) < 0.3 ? doCall(s) : doFold(s)
+    return doFold(s)
+  }
+}
+
+/**
+ * Size climbs with strength: air stabs small, the nuts overbet.
+ *
+ * The rungs are spread wider than they look like they need to be, because the
+ * minimum bet is 1 BB and a limped pot is 2 BB — in which anything under half
+ * the pot clamps to the same 1 BB and two rungs become one. The tell therefore
+ * only exists in built pots, which is a fact about no-limit rather than a
+ * property of this opponent, and `bench.test.ts` asserts the ladder only where
+ * the engine lets it be expressed.
+ */
+export function sizedValue(rng: Rng): Policy {
+  const ladder: Record<Tier, number> = { nuts: 1.7, strong: 1.15, thin: 0.7, air: 0.35 }
+  return valueBettor(rng, (tier) => ladder[tier])
+}
+
+/** The control. Same hands, same spots, one size — so size says nothing at all. */
+export function flatValue(rng: Rng): Policy {
+  return valueBettor(rng, () => 0.7)
+}
+
 export const FAMILIAR: readonly Opponent[] = [
   { name: 'callingStation', make: callingStation },
   { name: 'nit', make: nit },
@@ -178,4 +269,6 @@ export const FAMILIAR: readonly Opponent[] = [
   { name: 'alwaysCall', make: alwaysCall },
   { name: 'loosePassiveMixer', make: loosePassiveMixer },
   { name: 'tightAggressive', make: tightAggressive },
+  { name: 'sizedValue', make: sizedValue },
+  { name: 'flatValue', make: flatValue },
 ]
