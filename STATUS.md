@@ -19,8 +19,9 @@ The four numbers that matter, all from [docs/results.md](docs/results.md):
 | CFR+ on Kuhn | −0.055555550 vs the closed form −1/18 — correct |
 
 By [ADR-009](docs/adrs/009-held-out-benchmark-discipline.md) it **does not ship
-as finished**: it loses to a held-out opponent. That is recorded, not worked
-around.
+as finished**: it loses to a held-out opponent
+([#6](https://github.com/shaal/poker-ai/issues/6), the ship blocker). That is
+recorded, not worked around.
 
 ## Nothing is blocked any more
 
@@ -42,7 +43,7 @@ What was bought and what it cost, so nobody re-opens it by accident:
 - **Outstanding, and easy to forget:** a public deployment owes its players a
   source offer. A footer link to the repository pinned to the deployed commit,
   due the first time this is hosted anywhere public — *not* when the solver
-  lands.
+  lands. ([#5](https://github.com/shaal/poker-ai/issues/5))
 
 ## Closed since the last session
 
@@ -97,6 +98,7 @@ project never reaches its floor.** The cheap measurement runs; it does not gate
 the build.
 
 **0. Ablate the range tracker. Hours, and it does not block anything below.**
+([#2](https://github.com/shaal/poker-ai/issues/2))
 Run the strategy with postflop narrowing disabled and the villain range left at
 its chart prior, over a row list registered before the run. This settles whether
 `narrowOnAction` is worth anything at all, which has never been measured in
@@ -108,6 +110,7 @@ and killing the second does not condemn the first.
 *Done when:* results.md has the rows, whichever way it went.
 
 **1. The river-only re-solver. The mainline, starting now.**
+([#3](https://github.com/shaal/poker-ai/issues/3))
 One street, no future to model, small enough to solve exactly. Proves the whole
 architecture — range plumbing, round trip, latency budget. Unblocked by
 [ADR-014](docs/adrs/014-solver-licence.md) as of 2026-08-01. It is also a
@@ -124,6 +127,7 @@ product-complete moment is *search explaining a river spot*, which needs 1 to
 exist.
 
 **2. A thin LBR probe, in parallel with 1, not before it.**
+([#4](https://github.com/shaal/poker-ai/issues/4))
 ([ADR-015](docs/adrs/015-best-response-probe-in-the-ship-gate.md).) Calibrate
 against a known-bad strategy — `alwaysFold` should lose horribly to it, and if
 it does not the probe is too weak to mean anything — then take one baseline
